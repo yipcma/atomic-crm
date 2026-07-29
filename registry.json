@@ -218,6 +218,22 @@
           "type": "registry:component"
         },
         {
+          "path": "src/components/atomic-crm/providers/railway/index.ts",
+          "type": "registry:component"
+        },
+        {
+          "path": "src/components/atomic-crm/providers/railway/httpClient.ts",
+          "type": "registry:component"
+        },
+        {
+          "path": "src/components/atomic-crm/providers/railway/dataProvider.ts",
+          "type": "registry:component"
+        },
+        {
+          "path": "src/components/atomic-crm/providers/railway/authProvider.ts",
+          "type": "registry:component"
+        },
+        {
           "path": "src/components/atomic-crm/providers/fakerest/index.ts",
           "type": "registry:component"
         },
@@ -479,6 +495,10 @@
         },
         {
           "path": "src/components/atomic-crm/misc/ActiveFilterButton.tsx",
+          "type": "registry:component"
+        },
+        {
+          "path": "src/components/atomic-crm/login/authConfig.ts",
           "type": "registry:component"
         },
         {
