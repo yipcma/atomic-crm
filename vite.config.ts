@@ -11,6 +11,11 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    // Same-origin API access in dev, matching the Caddy reverse proxy in prod.
+    proxy: {
+      "/api": "http://localhost:3000",
+      "/storage": "http://localhost:3000",
+    },
   },
   plugins: [
     react(),

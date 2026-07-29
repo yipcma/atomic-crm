@@ -1,0 +1,38 @@
+# Local development stack: Postgres + the CRM API.
+# The Vite dev server (npm run dev, port 5173) proxies /api and /storage here,
+# so the browser stays same-origin exactly like the Caddy setup in production.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: crm
+      POSTGRES_PASSWORD: crm
+      POSTGRES_DB: crm
+    ports:
+      - "5432:5432"
+    volumes:
+      - crm-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crm"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: ./server
+    environment:
+      DATABASE_URL: postgres://crm:crm@db:5432/crm
+      JWT_SECRET: dev-secret-change-me
+      PORT: "3000"
+      STORAGE_DIR: /data/attachments
+    ports:
+      - "3000:3000"
+    volumes:
+      - crm-files:/data/attachments
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  crm-db:
+  crm-files:

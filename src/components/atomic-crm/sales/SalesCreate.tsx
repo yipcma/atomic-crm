@@ -19,10 +19,16 @@ export function SalesCreate() {
     mutationFn: async (data: SalesFormData) => {
       return dataProvider.salesCreate(data);
     },
-    onSuccess: () => {
+    onSuccess: (sale) => {
+      const temporaryPassword = (sale as { temporary_password?: string })
+        .temporary_password;
       notify("resources.sales.create.success", {
+        type: "success",
+        autoHideDuration: temporaryPassword ? 0 : undefined,
         messageArgs: {
-          _: "User created. They will soon receive an email to set their password.",
+          _: temporaryPassword
+            ? `User created. Share this temporary password with them: ${temporaryPassword}`
+            : "User created.",
         },
       });
       redirect("/sales");

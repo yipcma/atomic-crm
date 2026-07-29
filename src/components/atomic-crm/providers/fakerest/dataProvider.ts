@@ -214,7 +214,7 @@ export const createDataProvider = ({
       first_name,
       last_name,
     }: SignUpData): Promise<{
-      id: string;
+      id: number;
       email: string;
       password: string;
     }> => {
@@ -261,7 +261,7 @@ export const createDataProvider = ({
       return { ...sale, user_id: sale.id.toString() };
     },
     isInitialized: async (): Promise<boolean> => {
-      const sales = await dataProvider.getList<Sale>("sales", {
+      const sales = await dataProvider.getList("sales", {
         filter: {},
         pagination: { page: 1, perPage: 1 },
         sort: { field: "id", order: "ASC" },
@@ -271,7 +271,7 @@ export const createDataProvider = ({
       }
       return true;
     },
-    updatePassword: async (id: Identifier): Promise<true> => {
+    updatePassword: async (id: Identifier): Promise<string> => {
       const currentUser = await getIdentity();
       if (!currentUser) {
         throw new Error("User not found");
@@ -292,7 +292,7 @@ export const createDataProvider = ({
         previousData,
       });
 
-      return true;
+      return "demo_newPassword";
     },
     mergeContacts: async (sourceId: Identifier, targetId: Identifier) => {
       return mergeContacts(sourceId, targetId, baseDataProvider);

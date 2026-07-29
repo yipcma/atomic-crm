@@ -1,0 +1,11 @@
+node_modules
+dist
+server/node_modules
+server/dist
+doc/node_modules
+doc/dist
+.git
+.github
+.claude
+e2e
+*.log

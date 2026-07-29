@@ -118,10 +118,12 @@ const ProfileForm = ({
       }
       return dataProvider.updatePassword(identity.id);
     },
-    onSuccess: () => {
+    onSuccess: (temporaryPassword) => {
       notify("crm.profile.password_reset_sent", {
+        type: "success",
+        autoHideDuration: 0,
         messageArgs: {
-          _: "A reset password email has been sent to your email address",
+          _: `Your new temporary password is: ${temporaryPassword}`,
         },
       });
     },
