@@ -20,14 +20,13 @@ export function SalesCreate() {
       return dataProvider.salesCreate(data);
     },
     onSuccess: (sale) => {
-      const temporaryPassword = (sale as { temporary_password?: string })
-        .temporary_password;
+      const inviteUrl = (sale as { invite_url?: string }).invite_url;
       notify("resources.sales.create.success", {
         type: "success",
-        autoHideDuration: temporaryPassword ? 0 : undefined,
+        autoHideDuration: inviteUrl ? 0 : undefined,
         messageArgs: {
-          _: temporaryPassword
-            ? `User created. Share this temporary password with them: ${temporaryPassword}`
+          _: inviteUrl
+            ? `User created. Share this link so they can set their password: ${inviteUrl}`
             : "User created.",
         },
       });

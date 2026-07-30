@@ -66,12 +66,12 @@ const ChangePasswordButton = () => {
       }
       return dataProvider.updatePassword(identity.id);
     },
-    onSuccess: (temporaryPassword) => {
+    onSuccess: (setPasswordUrl) => {
       notify("crm.profile.password_reset_sent", {
         type: "success",
         autoHideDuration: 0,
         messageArgs: {
-          _: `Your new temporary password is: ${temporaryPassword}`,
+          _: `Use this link to set a new password: ${setPasswordUrl}`,
         },
       });
     },

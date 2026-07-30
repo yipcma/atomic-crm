@@ -50,8 +50,10 @@ Migrations run automatically before each deploy (`node dist/migrate.js`).
 
 Open the `web` public URL. On first launch the app has no users, so it shows the
 sign-up page — the first account created becomes the administrator. Additional
-users are created from **Settings → Users** (a temporary password is shown to the
-admin to share, since email delivery is not configured).
+users are created from **Settings → Users**: creating a user produces a
+**set-password invite link** (shown to the admin) to share with the new user. No
+email service is required. Users can also generate a fresh set-password link for
+themselves from their profile.
 
 ## Local development
 
@@ -68,8 +70,11 @@ npm run dev                    # Vite on :5173, proxies /api and /storage to the
 
 - Auth is email + password with JWT (access + refresh tokens). SSO/SAML and the
   MCP/OAuth server were intentionally dropped.
-- Password reset returns a temporary password to the admin/user instead of
-  emailing a link (no email provider). Wire up SMTP later if desired.
+- New users onboard via a shareable set-password invite link (JWT, `INVITE_TOKEN_TTL`,
+  default 7 days) instead of an email. Password resets issue the same kind of link.
+  Wire up SMTP later if you prefer emailed links.
+- Contact avatars can be uploaded/cropped in the contact form; when none is set the
+  API still best-effort derives one from Gravatar / email-domain favicon.
 - Attachments are stored on the Railway volume and served via `/storage/*`.
   For multi-replica or multi-region, switch to S3-compatible storage.
 - The legacy Supabase code under `supabase/` and

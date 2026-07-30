@@ -13,6 +13,7 @@ export const env = {
   storageDir: process.env.STORAGE_DIR ?? "/data/attachments",
   accessTokenTtl: process.env.ACCESS_TOKEN_TTL ?? "1h",
   refreshTokenTtl: process.env.REFRESH_TOKEN_TTL ?? "30d",
+  inviteTokenTtl: process.env.INVITE_TOKEN_TTL ?? "7d",
   // Best-effort avatar/logo enrichment via favicon/gravatar lookups.
   enrichAvatars: process.env.ENRICH_AVATARS !== "false",
 };

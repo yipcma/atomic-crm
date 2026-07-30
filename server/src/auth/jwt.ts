@@ -13,6 +13,11 @@ export interface RefreshClaims extends JWTPayload {
   type: "refresh";
 }
 
+export interface InviteClaims extends JWTPayload {
+  sub: string; // user id
+  type: "invite";
+}
+
 export function signAccessToken(userId: string): Promise<string> {
   return new SignJWT({ type: "access" })
     .setProtectedHeader({ alg: "HS256" })
@@ -47,4 +52,23 @@ export async function verifyRefreshToken(
     throw new Error("Invalid token type");
   }
   return payload as RefreshClaims;
+}
+
+// Single-use-ish link token an admin shares so a user can set their password
+// without email delivery. Longer-lived than an access token.
+export function signInviteToken(userId: string): Promise<string> {
+  return new SignJWT({ type: "invite" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setSubject(userId)
+    .setIssuedAt()
+    .setExpirationTime(env.inviteTokenTtl)
+    .sign(secret);
+}
+
+export async function verifyInviteToken(token: string): Promise<InviteClaims> {
+  const { payload } = await jwtVerify(token, secret);
+  if (payload.type !== "invite") {
+    throw new Error("Invalid token type");
+  }
+  return payload as InviteClaims;
 }

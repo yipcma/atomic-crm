@@ -1,10 +1,11 @@
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { query } from "../db.js";
-import { verifyPassword } from "../auth/password.js";
+import { hashPassword, verifyPassword } from "../auth/password.js";
 import {
   signAccessToken,
   signRefreshToken,
+  verifyInviteToken,
   verifyRefreshToken,
 } from "../auth/jwt.js";
 import {
@@ -132,4 +133,52 @@ authRoutes.post("/signup", async (c) => {
     },
     201,
   );
+});
+
+// Accept an invite / set a new password from a shared link token, then log in.
+authRoutes.post("/set-password", async (c) => {
+  const { token, password } = await c.req.json<{
+    token?: string;
+    password?: string;
+  }>();
+  if (!token || !password) {
+    throw new HTTPException(400, {
+      message: "Token and password are required",
+    });
+  }
+  if (password.length < 8) {
+    throw new HTTPException(400, {
+      message: "Password must be at least 8 characters",
+    });
+  }
+
+  let userId: string;
+  try {
+    userId = (await verifyInviteToken(token)).sub;
+  } catch {
+    throw new HTTPException(401, { message: "Invalid or expired link" });
+  }
+
+  const encrypted = await hashPassword(password);
+  const updated = await query(
+    "update public.users set encrypted_password = $1 where id = $2 returning id",
+    [encrypted, userId],
+  );
+  if (!updated.rowCount) {
+    throw new HTTPException(404, { message: "Account not found" });
+  }
+
+  const sale = await saleForUser(userId);
+  if (!sale) {
+    throw new HTTPException(404, { message: "Account not found" });
+  }
+  if (sale.disabled) {
+    throw new HTTPException(403, { message: "Account disabled" });
+  }
+
+  return c.json({
+    access_token: await signAccessToken(userId),
+    refresh_token: await signRefreshToken(userId),
+    identity: toIdentity(sale),
+  });
 });

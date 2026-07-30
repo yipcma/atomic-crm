@@ -141,6 +141,17 @@ export async function updateSalesUser(
   });
 }
 
+export async function saleUserId(saleId: string): Promise<string> {
+  const { rows } = await query<{ user_id: string }>(
+    "select user_id from public.sales where id = $1",
+    [saleId],
+  );
+  if (!rows[0]) {
+    throw new HTTPException(404, { message: "User not found" });
+  }
+  return rows[0].user_id;
+}
+
 export async function resetSalesPassword(saleId: string): Promise<string> {
   const password = generatePassword();
   const encrypted = await hashPassword(password);

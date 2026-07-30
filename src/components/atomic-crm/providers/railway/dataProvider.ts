@@ -73,6 +73,11 @@ function remapActivity(row: any) {
   };
 }
 
+// Turn an invite token into a shareable set-password URL (email-free onboarding).
+function inviteUrl(token: string): string {
+  return `${window.location.origin}/set-password?token=${token}`;
+}
+
 function parseTotal(headers: Headers, fallback: number): number {
   const range = headers.get("Content-Range");
   const total = range?.split("/")[1];
@@ -235,13 +240,13 @@ const getDataProviderWithCustomMethods = () => ({
   },
 
   async salesCreate(body: SalesFormData) {
-    const { json } = await apiJson<{ data: Sale; temporary_password?: string }>(
+    const { json } = await apiJson<{ data: Sale; invite_token: string }>(
       "/api/users",
       jsonRequest("POST", body),
     );
     return {
       ...json.data,
-      temporary_password: json.temporary_password,
+      invite_url: inviteUrl(json.invite_token),
     } as Sale;
   },
 
@@ -269,9 +274,9 @@ const getDataProviderWithCustomMethods = () => ({
   async updatePassword(id: Identifier) {
     const { json } = await apiJson<{
       data: boolean;
-      temporary_password: string;
+      invite_token: string;
     }>("/api/update_password", jsonRequest("PATCH", { sales_id: id }));
-    return json.temporary_password;
+    return inviteUrl(json.invite_token);
   },
 
   async unarchiveDeal(deal: Deal) {
@@ -387,6 +392,16 @@ const lifeCycleCallbacks: ResourceCallbacks[] = [
     resource: "sales",
     beforeSave: async (data: Sale) => {
       if (data.avatar) {
+        await uploadToBucket(data.avatar);
+      }
+      return data;
+    },
+  },
+  {
+    resource: "contacts",
+    beforeSave: async (data: any) => {
+      // Only upload a freshly picked image; leave enrichment URLs untouched.
+      if (data.avatar?.rawFile instanceof File) {
         await uploadToBucket(data.avatar);
       }
       return data;

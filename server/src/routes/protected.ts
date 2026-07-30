@@ -2,9 +2,10 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { query } from "../db.js";
 import { requireAdmin } from "../auth/middleware.js";
+import { signInviteToken } from "../auth/jwt.js";
 import {
   createSalesUser,
-  resetSalesPassword,
+  saleUserId,
   updateSalesUser,
   type SaleRow,
 } from "../services/salesUser.js";
@@ -51,7 +52,7 @@ protectedRoutes.post("/users", async (c) => {
     password?: string;
   }>();
 
-  const { sale, temporaryPassword } = await createSalesUser({
+  const { sale } = await createSalesUser({
     email: body.email,
     first_name: body.first_name,
     last_name: body.last_name,
@@ -61,7 +62,9 @@ protectedRoutes.post("/users", async (c) => {
     password: body.password,
   });
 
-  return c.json({ data: sale, temporary_password: temporaryPassword }, 201);
+  // The new user has no usable password yet; they set one via this invite token.
+  const inviteToken = await signInviteToken(sale.user_id);
+  return c.json({ data: sale, invite_token: inviteToken }, 201);
 });
 
 // Update an account manager (formerly the "users" edge function, PATCH).
@@ -89,14 +92,20 @@ protectedRoutes.patch("/users", async (c) => {
   return c.json({ data: sale });
 });
 
-// Reset an account manager's password (formerly "update_password" edge fn).
-// Without an email provider, the new temporary password is returned so the
-// administrator can share it with the user.
+// Generate a set-password link for a user (self-service, or admin for anyone).
+// Returns an invite token the caller turns into a shareable /set-password URL.
 protectedRoutes.patch("/update_password", async (c) => {
-  requireAdmin(c);
   const { sales_id } = await c.req.json<{ sales_id: string | number }>();
-  const temporaryPassword = await resetSalesPassword(String(sales_id));
-  return c.json({ data: true, temporary_password: temporaryPassword });
+  const targetId = String(sales_id);
+  const current = c.get("sale");
+  if (!current.administrator && String(current.id) !== targetId) {
+    throw new HTTPException(403, {
+      message: "You can only reset your own password",
+    });
+  }
+  const userId = await saleUserId(targetId);
+  const inviteToken = await signInviteToken(userId);
+  return c.json({ data: true, invite_token: inviteToken });
 });
 
 // Merge two contacts (formerly the "merge_contacts" edge function).

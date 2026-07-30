@@ -35,6 +35,10 @@ app.onError((err, c) => {
   if (err instanceof HTTPException) {
     return c.json({ message: err.message }, err.status);
   }
+  // Malformed JSON request bodies are client errors, not server faults.
+  if (err instanceof SyntaxError) {
+    return c.json({ message: "Invalid JSON body" }, 400);
+  }
   console.error("Unhandled error:", err);
   return c.json({ message: "Internal server error" }, 500);
 });

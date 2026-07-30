@@ -21,7 +21,7 @@ import { SimpleFormIterator } from "@/components/admin/simple-form-iterator";
 import { isLinkedinUrl } from "../misc/isLinkedInUrl";
 import { StatusSelector } from "../notes";
 import type { Sale, Contact } from "../types";
-import { Avatar } from "./Avatar";
+import ImageEditorField from "../misc/ImageEditorField";
 import { AutocompleteCompanyInput } from "../companies/AutocompleteCompanyInput.tsx";
 import {
   contactGender,
@@ -35,7 +35,13 @@ export const ContactInputs = () => {
   return (
     <div className="flex flex-col gap-2 p-1 relative md:static">
       <div className="absolute top-0 right-1 md:static">
-        <Avatar />
+        <ImageEditorField
+          source="avatar"
+          type="avatar"
+          width={60}
+          height={60}
+          linkPosition="bottom"
+        />
       </div>
       <div className="flex gap-10 md:gap-6 flex-col md:flex-row">
         <div className="flex flex-col gap-10 flex-1">

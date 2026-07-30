@@ -18,6 +18,12 @@ interface Identity {
   administrator: boolean;
 }
 
+export interface LoginResult {
+  access_token: string;
+  refresh_token: string;
+  identity: Identity;
+}
+
 function getLocalStorage(): Storage | null {
   return typeof window !== "undefined" ? window.localStorage : null;
 }
@@ -38,6 +44,14 @@ function clearCache(): void {
   const storage = getLocalStorage();
   storage?.removeItem(IS_INITIALIZED_CACHE_KEY);
   storage?.removeItem(CURRENT_IDENTITY_CACHE_KEY);
+}
+
+// Persist tokens + identity after a login or set-password, so the app is ready
+// on the next render without an extra round-trip.
+export function establishSession(result: LoginResult): void {
+  setTokens(result.access_token, result.refresh_token);
+  cacheIdentity(result.identity);
+  getLocalStorage()?.setItem(IS_INITIALIZED_CACHE_KEY, "true");
 }
 
 export async function getIsInitialized(): Promise<boolean> {
@@ -68,18 +82,11 @@ export const getAuthProvider = (): AuthProvider => ({
       throw new Error("SSO login is not supported on this deployment");
     }
     const email = params.email ?? params.username;
-    const { json } = await apiJson<{
-      access_token: string;
-      refresh_token: string;
-      identity: Identity;
-    }>(
+    const { json } = await apiJson<LoginResult>(
       "/api/auth/login",
       jsonRequest("POST", { email, password: params.password }),
     );
-
-    setTokens(json.access_token, json.refresh_token);
-    cacheIdentity(json.identity);
-    getLocalStorage()?.setItem(IS_INITIALIZED_CACHE_KEY, "true");
+    establishSession(json);
   },
 
   async logout() {
