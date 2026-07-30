@@ -510,6 +510,10 @@
           "type": "registry:component"
         },
         {
+          "path": "src/components/atomic-crm/login/SetPasswordPage.tsx",
+          "type": "registry:component"
+        },
+        {
           "path": "src/components/atomic-crm/login/SSOAuthButton.tsx",
           "type": "registry:component"
         },
