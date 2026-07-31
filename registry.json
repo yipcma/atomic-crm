@@ -202,22 +202,6 @@
           "type": "registry:component"
         },
         {
-          "path": "src/components/atomic-crm/providers/supabase/supabase.ts",
-          "type": "registry:component"
-        },
-        {
-          "path": "src/components/atomic-crm/providers/supabase/index.ts",
-          "type": "registry:component"
-        },
-        {
-          "path": "src/components/atomic-crm/providers/supabase/dataProvider.ts",
-          "type": "registry:component"
-        },
-        {
-          "path": "src/components/atomic-crm/providers/supabase/authProvider.ts",
-          "type": "registry:component"
-        },
-        {
           "path": "src/components/atomic-crm/providers/railway/index.ts",
           "type": "registry:component"
         },
@@ -446,6 +430,10 @@
           "type": "registry:component"
         },
         {
+          "path": "src/components/atomic-crm/misc/ShareLinkDialog.tsx",
+          "type": "registry:component"
+        },
+        {
           "path": "src/components/atomic-crm/misc/ResponsiveFilters.tsx",
           "type": "registry:component"
         },
@@ -515,6 +503,10 @@
         },
         {
           "path": "src/components/atomic-crm/login/SSOAuthButton.tsx",
+          "type": "registry:component"
+        },
+        {
+          "path": "src/components/atomic-crm/login/RegisterPage.tsx",
           "type": "registry:component"
         },
         {
@@ -855,22 +847,6 @@
         },
         {
           "path": "src/components/atomic-crm/activity/ActivityLog.tsx",
-          "type": "registry:component"
-        },
-        {
-          "path": "src/components/supabase/set-password-page.tsx",
-          "type": "registry:component"
-        },
-        {
-          "path": "src/components/supabase/oauth-consent-page.tsx",
-          "type": "registry:component"
-        },
-        {
-          "path": "src/components/supabase/layout.tsx",
-          "type": "registry:component"
-        },
-        {
-          "path": "src/components/supabase/forgot-password-page.tsx",
           "type": "registry:component"
         },
         {
