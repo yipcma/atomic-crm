@@ -426,6 +426,10 @@
           "type": "registry:component"
         },
         {
+          "path": "src/components/atomic-crm/misc/SuperAdminOrganizations.tsx",
+          "type": "registry:component"
+        },
+        {
           "path": "src/components/atomic-crm/misc/Status.tsx",
           "type": "registry:component"
         },
@@ -490,6 +494,10 @@
           "type": "registry:component"
         },
         {
+          "path": "src/components/atomic-crm/login/VerifyEmailPage.tsx",
+          "type": "registry:component"
+        },
+        {
           "path": "src/components/atomic-crm/login/StartPage.tsx",
           "type": "registry:component"
         },
@@ -523,6 +531,10 @@
         },
         {
           "path": "src/components/atomic-crm/login/ConfirmationRequired.tsx",
+          "type": "registry:component"
+        },
+        {
+          "path": "src/components/atomic-crm/login/CheckYourEmail.tsx",
           "type": "registry:component"
         },
         {
@@ -631,6 +643,10 @@
         },
         {
           "path": "src/components/atomic-crm/dashboard/MobileDashboard.tsx",
+          "type": "registry:component"
+        },
+        {
+          "path": "src/components/atomic-crm/dashboard/MentionsList.tsx",
           "type": "registry:component"
         },
         {
