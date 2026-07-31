@@ -11,7 +11,7 @@ import {
   verifySignupInviteToken,
 } from "../auth/jwt.js";
 import {
-  countUsers,
+  createOrganization,
   createSalesUser,
   type SaleRow,
 } from "../services/salesUser.js";
@@ -99,25 +99,31 @@ authRoutes.post("/refresh", async (c) => {
   return c.json({ access_token: await signAccessToken(userId) });
 });
 
-// First-run bootstrap: creates the initial administrator. Disabled once any
-// user exists (further accounts are created by admins via /api/users).
+// Open self-serve sign-up: creates a NEW organization and its first admin.
 authRoutes.post("/signup", async (c) => {
-  if ((await countUsers()) > 0) {
-    throw new HTTPException(403, {
-      message: "Application already initialized",
-    });
-  }
-  const { email, password, first_name, last_name } = await c.req.json<{
-    email?: string;
-    password?: string;
-    first_name?: string;
-    last_name?: string;
-  }>();
+  const { email, password, first_name, last_name, organization_name } =
+    await c.req.json<{
+      email?: string;
+      password?: string;
+      first_name?: string;
+      last_name?: string;
+      organization_name?: string;
+    }>();
   if (!email || !password) {
     throw new HTTPException(400, {
       message: "Email and password are required",
     });
   }
+  if (password.length < 8) {
+    throw new HTTPException(400, {
+      message: "Password must be at least 8 characters",
+    });
+  }
+
+  const orgName =
+    organization_name?.trim() ||
+    (first_name ? `${first_name}'s Organization` : "My Organization");
+  const organizationId = await createOrganization(orgName);
 
   const { sale } = await createSalesUser({
     email,
@@ -126,6 +132,7 @@ authRoutes.post("/signup", async (c) => {
     last_name: last_name ?? "",
     administrator: true,
     disabled: false,
+    organizationId,
   });
 
   return c.json(
@@ -171,8 +178,9 @@ authRoutes.post("/register", async (c) => {
   if (!token) {
     throw new HTTPException(400, { message: "Missing invite token" });
   }
+  let organizationId: number;
   try {
-    await verifySignupInviteToken(token);
+    organizationId = (await verifySignupInviteToken(token)).org;
   } catch {
     throw new HTTPException(401, { message: "Invalid or expired invite link" });
   }
@@ -194,6 +202,7 @@ authRoutes.post("/register", async (c) => {
     last_name: last_name ?? "",
     administrator: false,
     disabled: false,
+    organizationId,
   });
 
   return c.json(

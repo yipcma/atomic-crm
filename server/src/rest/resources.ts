@@ -14,7 +14,6 @@ export const RESOURCES: Record<string, ResourceDef> = {
   tasks: { table: "tasks", readSource: "tasks" },
   sales: { table: "sales", readSource: "sales" },
   tags: { table: "tags", readSource: "tags" },
-  configuration: { table: "configuration", readSource: "configuration" },
   activity_log: { table: "activity_log", readSource: "activity_log" },
 };
 

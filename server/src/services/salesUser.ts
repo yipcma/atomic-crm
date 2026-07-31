@@ -12,10 +12,19 @@ export interface SaleRow {
   disabled: boolean;
   avatar: unknown;
   user_id: string;
+  organization_id: number;
 }
 
 export function generatePassword(): string {
   return randomBytes(12).toString("base64url");
+}
+
+export async function createOrganization(name: string): Promise<number> {
+  const { rows } = await query<{ id: number }>(
+    "insert into public.organizations (name) values ($1) returning id",
+    [name],
+  );
+  return rows[0].id;
 }
 
 export async function countUsers(): Promise<number> {
@@ -30,6 +39,7 @@ export interface CreateSalesInput {
   first_name: string;
   last_name: string;
   administrator: boolean;
+  organizationId: number;
   disabled?: boolean;
   avatar?: unknown;
   password?: string;
@@ -56,8 +66,8 @@ export async function createSalesUser(
     const userId = user.rows[0].id;
     const created = await client.query<SaleRow>(
       `insert into public.sales
-        (first_name, last_name, email, user_id, administrator, disabled, avatar)
-       values ($1, $2, $3, $4, $5, $6, $7)
+        (first_name, last_name, email, user_id, administrator, disabled, avatar, organization_id)
+       values ($1, $2, $3, $4, $5, $6, $7, $8)
        returning *`,
       [
         input.first_name,
@@ -67,6 +77,7 @@ export async function createSalesUser(
         input.administrator,
         input.disabled ?? false,
         input.avatar ?? null,
+        input.organizationId,
       ],
     );
     return created.rows[0];
@@ -99,6 +110,7 @@ const UPDATABLE_SALE_FIELDS = [
 export async function updateSalesUser(
   saleId: string,
   patch: UpdateSalesInput,
+  organizationId: number,
 ): Promise<SaleRow> {
   return withTransaction(async (client) => {
     const current = await client.query<SaleRow>(
@@ -106,7 +118,7 @@ export async function updateSalesUser(
       [saleId],
     );
     const sale = current.rows[0];
-    if (!sale) {
+    if (!sale || sale.organization_id !== organizationId) {
       throw new HTTPException(404, { message: "User not found" });
     }
 
@@ -141,10 +153,13 @@ export async function updateSalesUser(
   });
 }
 
-export async function saleUserId(saleId: string): Promise<string> {
+export async function saleUserId(
+  saleId: string,
+  organizationId: number,
+): Promise<string> {
   const { rows } = await query<{ user_id: string }>(
-    "select user_id from public.sales where id = $1",
-    [saleId],
+    "select user_id from public.sales where id = $1 and organization_id = $2",
+    [saleId, organizationId],
   );
   if (!rows[0]) {
     throw new HTTPException(404, { message: "User not found" });
@@ -167,17 +182,20 @@ const OWNED_TABLES = [
 export async function deleteSalesUser(
   saleId: string,
   currentSaleId: number,
+  organizationId: number,
 ): Promise<void> {
   await withTransaction(async (client) => {
     const { rows } = await client.query<{
       id: number;
       user_id: string;
       administrator: boolean;
-    }>("select id, user_id, administrator from public.sales where id = $1", [
-      saleId,
-    ]);
+      organization_id: number;
+    }>(
+      "select id, user_id, administrator, organization_id from public.sales where id = $1",
+      [saleId],
+    );
     const sale = rows[0];
-    if (!sale) {
+    if (!sale || sale.organization_id !== organizationId) {
       throw new HTTPException(404, { message: "User not found" });
     }
     if (sale.id === currentSaleId) {
@@ -187,7 +205,8 @@ export async function deleteSalesUser(
     }
     if (sale.administrator) {
       const { rows: adminRows } = await client.query<{ count: number }>(
-        "select count(*)::int as count from public.sales where administrator = true",
+        "select count(*)::int as count from public.sales where administrator = true and organization_id = $1",
+        [organizationId],
       );
       if ((adminRows[0]?.count ?? 0) <= 1) {
         throw new HTTPException(400, {
@@ -198,8 +217,8 @@ export async function deleteSalesUser(
 
     for (const table of OWNED_TABLES) {
       await client.query(
-        `update public.${table} set sales_id = null where sales_id = $1`,
-        [saleId],
+        `update public.${table} set sales_id = null where sales_id = $1 and organization_id = $2`,
+        [saleId, organizationId],
       );
     }
 

@@ -20,6 +20,7 @@ export interface InviteClaims extends JWTPayload {
 
 export interface SignupInviteClaims extends JWTPayload {
   type: "signup-invite";
+  org: number;
 }
 
 export function signAccessToken(userId: string): Promise<string> {
@@ -78,9 +79,9 @@ export async function verifyInviteToken(token: string): Promise<InviteClaims> {
 }
 
 // Generic, user-agnostic invite an admin shares so anyone with the link can
-// self-register a (non-admin) account until it expires.
-export function signSignupInviteToken(): Promise<string> {
-  return new SignJWT({ type: "signup-invite" })
+// self-register a (non-admin) account into a specific organization.
+export function signSignupInviteToken(organizationId: number): Promise<string> {
+  return new SignJWT({ type: "signup-invite", org: organizationId })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(env.genericInviteTtl)

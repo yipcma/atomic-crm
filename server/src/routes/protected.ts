@@ -62,6 +62,7 @@ protectedRoutes.post("/users", async (c) => {
     disabled: body.disabled ?? false,
     avatar: body.avatar,
     password: body.password,
+    organizationId: c.get("sale").organization_id,
   });
 
   // The new user has no usable password yet; they set one via this invite token.
@@ -72,14 +73,17 @@ protectedRoutes.post("/users", async (c) => {
 // Generate a generic, shareable self-registration invite link (admin only).
 protectedRoutes.post("/users/generic-invite", async (c) => {
   requireAdmin(c);
-  const inviteToken = await signSignupInviteToken();
+  const inviteToken = await signSignupInviteToken(
+    c.get("sale").organization_id,
+  );
   return c.json({ invite_token: inviteToken });
 });
 
 // Delete an account manager (admin only). Owned records are kept but unassigned.
 protectedRoutes.delete("/users/:id", async (c) => {
   requireAdmin(c);
-  await deleteSalesUser(c.req.param("id"), c.get("sale").id);
+  const sale = c.get("sale");
+  await deleteSalesUser(c.req.param("id"), sale.id, sale.organization_id);
   return c.json({ data: { id: c.req.param("id") } });
 });
 
@@ -96,14 +100,18 @@ protectedRoutes.patch("/users", async (c) => {
     avatar?: unknown;
   }>();
 
-  const sale = await updateSalesUser(String(body.sales_id), {
-    email: body.email,
-    first_name: body.first_name,
-    last_name: body.last_name,
-    administrator: body.administrator,
-    disabled: body.disabled,
-    avatar: body.avatar,
-  });
+  const sale = await updateSalesUser(
+    String(body.sales_id),
+    {
+      email: body.email,
+      first_name: body.first_name,
+      last_name: body.last_name,
+      administrator: body.administrator,
+      disabled: body.disabled,
+      avatar: body.avatar,
+    },
+    c.get("sale").organization_id,
+  );
 
   return c.json({ data: sale });
 });
@@ -119,13 +127,13 @@ protectedRoutes.patch("/update_password", async (c) => {
       message: "You can only reset your own password",
     });
   }
-  const userId = await saleUserId(targetId);
+  const userId = await saleUserId(targetId, current.organization_id);
   const inviteToken = await signInviteToken(userId);
 
   if (isEmailEnabled()) {
     const { rows } = await query<{ email: string }>(
-      "select email from public.sales where id = $1",
-      [targetId],
+      "select email from public.sales where id = $1 and organization_id = $2",
+      [targetId, current.organization_id],
     );
     const email = rows[0]?.email;
     if (email) {
@@ -150,6 +158,15 @@ protectedRoutes.post("/merge_contacts", async (c) => {
     throw new HTTPException(400, {
       message: "loserId and winnerId are required",
     });
+  }
+  // Ensure both contacts belong to the caller's organization before merging.
+  const orgId = c.get("sale").organization_id;
+  const { rows } = await query<{ count: number }>(
+    "select count(*)::int as count from public.contacts where id = any($1) and organization_id = $2",
+    [[loserId, winnerId], orgId],
+  );
+  if ((rows[0]?.count ?? 0) !== 2) {
+    throw new HTTPException(404, { message: "Contact not found" });
   }
   await query("select public.merge_contacts($1, $2)", [loserId, winnerId]);
   return c.json({ success: true, winnerId });

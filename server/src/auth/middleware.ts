@@ -6,7 +6,7 @@ import type { CurrentSale } from "./context.js";
 
 async function loadSale(userId: string): Promise<CurrentSale | undefined> {
   const { rows } = await query<CurrentSale>(
-    "select id, administrator, disabled from public.sales where user_id = $1",
+    "select id, administrator, disabled, organization_id from public.sales where user_id = $1",
     [userId],
   );
   return rows[0];

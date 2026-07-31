@@ -51,9 +51,14 @@ async function bumpContactLastSeen(
   if (row.contact_id == null || row.date == null) return;
   await query(
     `update public.contacts set last_seen = $1
-     where id = $2 and (last_seen is null or last_seen < $1)`,
-    [row.date, row.contact_id],
+     where id = $2 and organization_id = $3 and (last_seen is null or last_seen < $1)`,
+    [row.date, row.contact_id, row.organization_id],
   );
+}
+
+function writeContext(c: any): WriteContext {
+  const sale = c.get("sale");
+  return { saleId: sale.id, organizationId: sale.organization_id };
 }
 
 const HOOKS: Record<string, ResourceHooks> = {
@@ -102,7 +107,7 @@ const HOOKS: Record<string, ResourceHooks> = {
 
 // Resources whose writes are only allowed through dedicated routes.
 const READ_ONLY = new Set(["activity_log", "sales"]);
-const NO_CREATE_DELETE = new Set(["configuration"]);
+const NO_CREATE_DELETE = new Set<string>();
 
 function assertWritable(resource: string): void {
   if (READ_ONLY.has(resource)) {
@@ -113,6 +118,28 @@ function assertWritable(resource: string): void {
 }
 
 export const dataRoutes = new Hono();
+
+// Per-organization configuration (stored on organizations.config). Registered
+// before the generic /:resource routes so it is not treated as a table. The id
+// is ignored; the caller's organization determines the row.
+dataRoutes.get("/configuration/:id", async (c) => {
+  const orgId = c.get("sale").organization_id;
+  const { rows } = await query<{ config: unknown }>(
+    "select config from public.organizations where id = $1",
+    [orgId],
+  );
+  return c.json({ id: 1, config: rows[0]?.config ?? {} });
+});
+
+dataRoutes.put("/configuration/:id", async (c) => {
+  const orgId = c.get("sale").organization_id;
+  const body = await c.req.json<{ config?: unknown }>();
+  const { rows } = await query<{ config: unknown }>(
+    "update public.organizations set config = $1 where id = $2 returning config",
+    [body.config ?? {}, orgId],
+  );
+  return c.json({ id: 1, config: rows[0]?.config ?? {} });
+});
 
 dataRoutes.get("/:resource", async (c) => {
   const resource = c.req.param("resource");
@@ -129,7 +156,11 @@ dataRoutes.get("/:resource", async (c) => {
     undefined,
   );
 
-  const result = await listRecords(resource, { filter, sort, range });
+  const result = await listRecords(
+    resource,
+    { filter, sort, range },
+    c.get("sale").organization_id,
+  );
   const rangeEnd = Math.max(result.start, result.end);
   c.header(
     "Content-Range",
@@ -139,7 +170,11 @@ dataRoutes.get("/:resource", async (c) => {
 });
 
 dataRoutes.get("/:resource/:id", async (c) => {
-  const row = await getRecord(c.req.param("resource"), c.req.param("id"));
+  const row = await getRecord(
+    c.req.param("resource"),
+    c.req.param("id"),
+    c.get("sale").organization_id,
+  );
   return c.json(row);
 });
 
@@ -149,7 +184,7 @@ dataRoutes.post("/:resource", async (c) => {
   if (NO_CREATE_DELETE.has(resource)) {
     throw new HTTPException(405, { message: "Create not allowed" });
   }
-  const ctx: WriteContext = { saleId: c.get("sale").id };
+  const ctx: WriteContext = writeContext(c);
   const body = await c.req.json();
   const row = await createRecord(resource, body, ctx, HOOKS[resource]);
   return c.json(row, 201);
@@ -158,7 +193,7 @@ dataRoutes.post("/:resource", async (c) => {
 dataRoutes.put("/:resource/:id", async (c) => {
   const resource = c.req.param("resource");
   assertWritable(resource);
-  const ctx: WriteContext = { saleId: c.get("sale").id };
+  const ctx: WriteContext = writeContext(c);
   const body = await c.req.json();
   const row = await updateRecord(
     resource,
@@ -176,7 +211,7 @@ dataRoutes.delete("/:resource/:id", async (c) => {
   if (NO_CREATE_DELETE.has(resource)) {
     throw new HTTPException(405, { message: "Delete not allowed" });
   }
-  const ctx: WriteContext = { saleId: c.get("sale").id };
+  const ctx: WriteContext = writeContext(c);
   const row = await deleteRecord(
     resource,
     c.req.param("id"),

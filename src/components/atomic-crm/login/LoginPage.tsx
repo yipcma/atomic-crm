@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Form, required, useLogin, useNotify, useTranslate } from "ra-core";
 import type { SubmitHandler, FieldValues } from "react-hook-form";
-import { useLocation, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { TextInput } from "@/components/admin/text-input";
 import { Notification } from "@/components/admin/notification";
@@ -142,6 +142,16 @@ export const LoginPage = (props: { redirectTo?: string }) => {
                   _: "Forgot password?",
                 })}
               </button>
+            )}
+            {disableEmailPasswordAuthentication ? null : (
+              <Link
+                to="/sign-up"
+                className="block w-full text-sm text-center text-muted-foreground hover:underline"
+              >
+                {translate("crm.auth.create_organization_link", {
+                  _: "Create an organization",
+                })}
+              </Link>
             )}
             {googleWorkplaceDomain ? (
               <SSOAuthButton className="w-full" domain={googleWorkplaceDomain}>

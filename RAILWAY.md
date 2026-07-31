@@ -80,6 +80,12 @@ npm run dev                    # Vite on :5173, proxies /api and /storage to the
 
 ## Notes / v1 scope
 
+- **Multi-tenant (pooled).** Every record carries an `organization_id` and the API
+  scopes every query to the caller's organization, so tenants never see each other's
+  data. Sign-up is open self-serve: anyone can create a new organization and becomes
+  its admin. Each org has its own admins and its own settings (branding, deal stages,
+  etc.). The "Create an organization" link is on the login page. Existing data is
+  migrated into a default organization on first migration.
 - Auth is email + password with JWT (access + refresh tokens). SSO/SAML and the
   MCP/OAuth server were intentionally dropped.
 - New users onboard via a shareable set-password invite link (JWT, `INVITE_TOKEN_TTL`,

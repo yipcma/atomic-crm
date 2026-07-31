@@ -264,14 +264,26 @@ const getDataProviderWithCustomMethods = () => ({
     return registerUrl(json.invite_token);
   },
 
-  async signUp({ email, password, first_name, last_name }: SignUpData) {
+  async signUp({
+    email,
+    password,
+    first_name,
+    last_name,
+    organization_name,
+  }: SignUpData) {
     const { json } = await apiJson<{
       access_token: string;
       refresh_token: string;
       identity: { id: number };
     }>(
       "/api/auth/signup",
-      jsonRequest("POST", { email, password, first_name, last_name }),
+      jsonRequest("POST", {
+        email,
+        password,
+        first_name,
+        last_name,
+        organization_name,
+      }),
     );
     setTokens(json.access_token, json.refresh_token);
     return { id: json.identity.id, email, password };

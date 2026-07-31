@@ -1,11 +1,12 @@
 import { HTTPException } from "hono/http-exception";
 import { query, withTransaction, type PoolClient } from "../db.js";
-import { getColumn, getColumns } from "../columns.js";
+import { getColumn, getColumns, hasColumn } from "../columns.js";
 import { buildOrderBy, buildWhere } from "./filter.js";
 import { getResource } from "./resources.js";
 
 export interface WriteContext {
   saleId: number;
+  organizationId: number;
 }
 
 export interface ResourceHooks {
@@ -104,24 +105,34 @@ export interface ListResult {
 export async function listRecords(
   resource: string,
   { filter, sort, range }: ListQuery,
+  organizationId: number,
 ): Promise<ListResult> {
   const { readSource } = resourceOrThrow(resource);
   const where = buildWhere(readSource, filter);
   const orderBy = buildOrderBy(readSource, sort);
+
+  // Tenant isolation: constrain to the caller's organization.
+  const params = [...where.params];
+  let clause = where.clause;
+  if (hasColumn(readSource, "organization_id")) {
+    params.push(organizationId);
+    const cond = `${quoteIdent("organization_id")} = $${params.length}`;
+    clause = clause ? `${clause} AND ${cond}` : `WHERE ${cond}`;
+  }
 
   const start = range?.[0] ?? 0;
   const end = range?.[1] ?? start + 24;
   const limit = Math.max(0, end - start + 1);
 
   const countResult = await query<{ count: number }>(
-    `select count(*)::int as count from ${quoteIdent(readSource)} ${where.clause}`,
-    where.params,
+    `select count(*)::int as count from ${quoteIdent(readSource)} ${clause}`,
+    params,
   );
   const total = countResult.rows[0]?.count ?? 0;
 
   const dataResult = await query(
-    `select * from ${quoteIdent(readSource)} ${where.clause} ${orderBy} limit ${limit} offset ${start}`,
-    where.params,
+    `select * from ${quoteIdent(readSource)} ${clause} ${orderBy} limit ${limit} offset ${start}`,
+    params,
   );
 
   return {
@@ -135,12 +146,16 @@ export async function listRecords(
 export async function getRecord(
   resource: string,
   id: string,
+  organizationId: number,
 ): Promise<Record<string, unknown>> {
   const { readSource } = resourceOrThrow(resource);
-  const { rows } = await query(
-    `select * from ${quoteIdent(readSource)} where id = $1`,
-    [id],
-  );
+  const params: unknown[] = [id];
+  let sql = `select * from ${quoteIdent(readSource)} where id = $1`;
+  if (hasColumn(readSource, "organization_id")) {
+    params.push(organizationId);
+    sql += ` and ${quoteIdent("organization_id")} = $2`;
+  }
+  const { rows } = await query(sql, params);
   if (!rows[0]) {
     throw new HTTPException(404, { message: "Record not found" });
   }
@@ -151,11 +166,17 @@ async function reload(
   client: PoolClient | null,
   readSource: string,
   id: unknown,
+  organizationId: number,
 ): Promise<Record<string, unknown>> {
-  const sql = `select * from ${quoteIdent(readSource)} where id = $1`;
+  const params: unknown[] = [id];
+  let sql = `select * from ${quoteIdent(readSource)} where id = $1`;
+  if (hasColumn(readSource, "organization_id")) {
+    params.push(organizationId);
+    sql += ` and ${quoteIdent("organization_id")} = $2`;
+  }
   const result = client
-    ? await client.query(sql, [id])
-    : await query(sql, [id]);
+    ? await client.query(sql, params)
+    : await query(sql, params);
   return result.rows[0];
 }
 
@@ -173,6 +194,10 @@ export async function createRecord(
     data.sales_id = ctx.saleId;
   }
   if (hooks.beforeCreate) data = await hooks.beforeCreate(data, ctx);
+  // Force the tenant: never trust a client-supplied organization_id.
+  if (getColumns(table).has("organization_id")) {
+    data.organization_id = ctx.organizationId;
+  }
 
   const writable = pickWritable(table, data);
   const keys = Object.keys(writable);
@@ -194,7 +219,7 @@ export async function createRecord(
       values,
     );
     const id = inserted.rows[0]?.id;
-    const row = await reload(client, readSource, id);
+    const row = await reload(client, readSource, id, ctx.organizationId);
     if (hooks.afterCreate) await hooks.afterCreate(row, ctx);
     return row;
   });
@@ -209,7 +234,7 @@ export async function updateRecord(
 ): Promise<Record<string, unknown>> {
   const { table, readSource } = resourceOrThrow(resource);
 
-  const previous = await getRecord(resource, id);
+  const previous = await getRecord(resource, id, ctx.organizationId);
   let data = { ...input };
   if (hooks.beforeUpdate) {
     data = await hooks.beforeUpdate(id, data, previous, ctx);
@@ -217,6 +242,8 @@ export async function updateRecord(
 
   const writable = pickWritable(table, data);
   delete writable.id;
+  // Never let a client move a record to another tenant.
+  delete writable.organization_id;
   const keys = Object.keys(writable);
 
   return withTransaction(async (client) => {
@@ -234,12 +261,17 @@ export async function updateRecord(
         values.push(encoded.value);
       });
       values.push(id);
+      let whereSql = `where id = $${values.length}`;
+      if (getColumns(table).has("organization_id")) {
+        values.push(ctx.organizationId);
+        whereSql += ` and ${quoteIdent("organization_id")} = $${values.length}`;
+      }
       await client.query(
-        `update ${quoteIdent(table)} set ${assignments.join(", ")} where id = $${values.length}`,
+        `update ${quoteIdent(table)} set ${assignments.join(", ")} ${whereSql}`,
         values,
       );
     }
-    const row = await reload(client, readSource, id);
+    const row = await reload(client, readSource, id, ctx.organizationId);
     if (hooks.afterUpdate) await hooks.afterUpdate(row, previous, ctx);
     return row;
   });
@@ -252,8 +284,14 @@ export async function deleteRecord(
   hooks: ResourceHooks = {},
 ): Promise<Record<string, unknown>> {
   const { table } = resourceOrThrow(resource);
-  const previous = await getRecord(resource, id);
+  const previous = await getRecord(resource, id, ctx.organizationId);
   if (hooks.beforeDelete) await hooks.beforeDelete(previous, ctx);
-  await query(`delete from ${quoteIdent(table)} where id = $1`, [id]);
+  const params: unknown[] = [id];
+  let sql = `delete from ${quoteIdent(table)} where id = $1`;
+  if (getColumns(table).has("organization_id")) {
+    params.push(ctx.organizationId);
+    sql += ` and ${quoteIdent("organization_id")} = $2`;
+  }
+  await query(sql, params);
   return previous;
 }
