@@ -30,6 +30,12 @@ It exposes `DATABASE_URL` for reference by other services.
   | `PORT` | `3000` |
   | `STORAGE_DIR` | `/data/attachments` |
   | `ENRICH_AVATARS` | `true` (set `false` to skip gravatar/favicon lookups) |
+  | `APP_URL` | your `web` public URL, e.g. `https://your-crm.example.com` (used in email links) |
+  | `RESEND_API_KEY` | optional — a [Resend](https://resend.com) API key to enable password-reset emails |
+  | `EMAIL_FROM` | optional — sender, e.g. `Atomic CRM <noreply@yourdomain.com>` |
+
+When `RESEND_API_KEY` + `APP_URL` are set, "Forgot password?" and admin resets send
+an email; otherwise they fall back to a copyable reset link.
 
 Migrations run automatically before each deploy (`node dist/migrate.js`).
 

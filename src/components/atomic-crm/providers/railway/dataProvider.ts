@@ -74,13 +74,14 @@ function remapActivity(row: any) {
 }
 
 // Turn an invite token into a shareable set-password URL (email-free onboarding).
+// The app uses hash routing, so the token must live in the hash, not the path.
 function inviteUrl(token: string): string {
-  return `${window.location.origin}/set-password?token=${token}`;
+  return `${window.location.origin}/#/set-password?token=${encodeURIComponent(token)}`;
 }
 
 // Turn a generic invite token into a shareable self-registration URL.
 function registerUrl(token: string): string {
-  return `${window.location.origin}/register?token=${token}`;
+  return `${window.location.origin}/#/register?token=${encodeURIComponent(token)}`;
 }
 
 function parseTotal(headers: Headers, fallback: number): number {
@@ -308,12 +309,22 @@ const getDataProviderWithCustomMethods = () => ({
     return json.data;
   },
 
+  // Reset a password: emails a link when configured, else returns a copy link.
   async updatePassword(id: Identifier) {
     const { json } = await apiJson<{
       data: boolean;
-      invite_token: string;
+      emailed: boolean;
+      invite_token?: string;
     }>("/api/update_password", jsonRequest("PATCH", { sales_id: id }));
-    return inviteUrl(json.invite_token);
+    return {
+      emailed: json.emailed,
+      url: json.invite_token ? inviteUrl(json.invite_token) : undefined,
+    };
+  },
+
+  // Public request to email a password-reset link (used by the login page).
+  async forgotPassword(email: string): Promise<void> {
+    await apiJson("/api/auth/forgot-password", jsonRequest("POST", { email }));
   },
 
   async unarchiveDeal(deal: Deal) {

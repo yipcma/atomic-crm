@@ -7,6 +7,7 @@ import { TextInput } from "@/components/admin/text-input";
 import { Notification } from "@/components/admin/notification";
 import { useConfigurationContext } from "@/components/atomic-crm/root/ConfigurationContext.tsx";
 import { SSOAuthButton } from "./SSOAuthButton";
+import { ForgotPasswordDialog } from "./ForgotPasswordDialog";
 import {
   disableEmailPasswordAuthentication,
   googleWorkplaceDomain,
@@ -25,6 +26,7 @@ export const LoginPage = (props: { redirectTo?: string }) => {
   const { darkModeLogo, title } = useConfigurationContext();
   const { redirectTo } = props;
   const [loading, setLoading] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
   const hasDisplayedRecoveryNotification = useRef(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -130,6 +132,17 @@ export const LoginPage = (props: { redirectTo?: string }) => {
                 </div>
               </Form>
             )}
+            {disableEmailPasswordAuthentication ? null : (
+              <button
+                type="button"
+                onClick={() => setForgotOpen(true)}
+                className="block w-full text-sm text-center text-muted-foreground hover:underline"
+              >
+                {translate("crm.auth.forgot_password", {
+                  _: "Forgot password?",
+                })}
+              </button>
+            )}
             {googleWorkplaceDomain ? (
               <SSOAuthButton className="w-full" domain={googleWorkplaceDomain}>
                 {translate("crm.auth.sign_in_google_workspace", {
@@ -140,6 +153,10 @@ export const LoginPage = (props: { redirectTo?: string }) => {
           </div>
         </div>
       </div>
+      <ForgotPasswordDialog
+        open={forgotOpen}
+        onClose={() => setForgotOpen(false)}
+      />
       <Notification />
     </div>
   );

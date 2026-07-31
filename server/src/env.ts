@@ -15,6 +15,10 @@ export const env = {
   refreshTokenTtl: process.env.REFRESH_TOKEN_TTL ?? "30d",
   inviteTokenTtl: process.env.INVITE_TOKEN_TTL ?? "7d",
   genericInviteTtl: process.env.GENERIC_INVITE_TTL ?? "7d",
+  // Email (Resend) config; when unset, password resets fall back to a copy link.
+  resendApiKey: process.env.RESEND_API_KEY ?? "",
+  emailFrom: process.env.EMAIL_FROM ?? "Atomic CRM <onboarding@resend.dev>",
+  appUrl: process.env.APP_URL ?? "",
   // Best-effort avatar/logo enrichment via favicon/gravatar lookups.
   enrichAvatars: process.env.ENRICH_AVATARS !== "false",
 };

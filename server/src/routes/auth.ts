@@ -4,6 +4,7 @@ import { query } from "../db.js";
 import { hashPassword, verifyPassword } from "../auth/password.js";
 import {
   signAccessToken,
+  signInviteToken,
   signRefreshToken,
   verifyInviteToken,
   verifyRefreshToken,
@@ -14,6 +15,7 @@ import {
   createSalesUser,
   type SaleRow,
 } from "../services/salesUser.js";
+import { isEmailEnabled, sendPasswordResetEmail } from "../email.js";
 
 interface UserRow {
   id: string;
@@ -134,6 +136,27 @@ authRoutes.post("/signup", async (c) => {
     },
     201,
   );
+});
+
+// Public password-reset request. Always returns ok (no account enumeration);
+// emails a reset link only when the account exists and email is configured.
+authRoutes.post("/forgot-password", async (c) => {
+  const { email } = await c.req.json<{ email?: string }>();
+  if (email && isEmailEnabled()) {
+    const { rows } = await query<{ id: string }>(
+      "select id from public.users where email = $1",
+      [email],
+    );
+    const user = rows[0];
+    if (user) {
+      try {
+        await sendPasswordResetEmail(email, await signInviteToken(user.id));
+      } catch (error) {
+        console.error("forgot-password email failed:", error);
+      }
+    }
+  }
+  return c.json({ ok: true });
 });
 
 // Self-registration via a generic shared invite link (non-admin accounts).

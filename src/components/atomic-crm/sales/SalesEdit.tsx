@@ -1,4 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
+import { useState } from "react";
+import { KeyRound } from "lucide-react";
 import {
   useDataProvider,
   useEditController,
@@ -11,10 +13,12 @@ import type { SubmitHandler } from "react-hook-form";
 import { SimpleForm } from "@/components/admin/simple-form";
 import { CancelButton } from "@/components/admin/cancel-button";
 import { SaveButton } from "@/components/admin/form";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 import type { CrmDataProvider } from "../providers/types";
 import type { Sale, SalesFormData } from "../types";
+import { ShareLinkDialog } from "../misc/ShareLinkDialog";
 import { SalesInputs } from "./SalesInputs";
 
 function EditToolbar() {
@@ -79,6 +83,7 @@ export function SalesEdit() {
           >
             <SaleEditTitle />
             <SalesInputs />
+            <AdminResetPasswordButton />
           </SimpleForm>
         </CardContent>
       </Card>
@@ -96,5 +101,65 @@ const SaleEditTitle = () => {
         name: `${record.first_name} ${record.last_name}`,
       })}
     </h2>
+  );
+};
+
+const AdminResetPasswordButton = () => {
+  const record = useRecordContext<Sale>();
+  const dataProvider = useDataProvider<CrmDataProvider>();
+  const notify = useNotify();
+  const translate = useTranslate();
+  const [resetUrl, setResetUrl] = useState<string | null>(null);
+
+  const { mutate, isPending } = useMutation({
+    mutationFn: async () => {
+      if (!record) throw new Error("No record");
+      return dataProvider.updatePassword(record.id);
+    },
+    onSuccess: (result) => {
+      if (result.emailed) {
+        notify("resources.sales.edit.reset_email_sent", {
+          type: "success",
+          messageArgs: { _: "Password reset email sent to the user." },
+        });
+      } else if (result.url) {
+        setResetUrl(result.url);
+      }
+    },
+    onError: () => {
+      notify("resources.sales.edit.reset_error", {
+        type: "error",
+        messageArgs: { _: "Could not reset the password." },
+      });
+    },
+  });
+
+  if (!record) return null;
+  return (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => mutate()}
+        disabled={isPending}
+        className="w-fit"
+      >
+        <KeyRound />
+        {translate("resources.sales.edit.reset_password", {
+          _: "Send password reset",
+        })}
+      </Button>
+      <ShareLinkDialog
+        open={resetUrl != null}
+        onClose={() => setResetUrl(null)}
+        title={translate("resources.sales.edit.reset_title", {
+          _: "Password reset link",
+        })}
+        description={translate("resources.sales.edit.reset_desc", {
+          _: "Share this link with the user so they can set a new password.",
+        })}
+        url={resetUrl ?? ""}
+      />
+    </>
   );
 };

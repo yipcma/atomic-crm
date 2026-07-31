@@ -271,7 +271,7 @@ export const createDataProvider = ({
       }
       return true;
     },
-    updatePassword: async (id: Identifier): Promise<string> => {
+    updatePassword: async (id: Identifier) => {
       const currentUser = await getIdentity();
       if (!currentUser) {
         throw new Error("User not found");
@@ -292,10 +292,14 @@ export const createDataProvider = ({
         previousData,
       });
 
-      return "demo_newPassword";
+      return {
+        emailed: false,
+        url: `${window.location.origin}/#/set-password?token=demo`,
+      };
     },
+    forgotPassword: async (): Promise<void> => {},
     genericInvite: async (): Promise<string> => {
-      return `${window.location.origin}/register?token=demo`;
+      return `${window.location.origin}/#/register?token=demo`;
     },
     mergeContacts: async (sourceId: Identifier, targetId: Identifier) => {
       return mergeContacts(sourceId, targetId, baseDataProvider);

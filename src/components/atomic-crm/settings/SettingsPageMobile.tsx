@@ -68,8 +68,17 @@ const ChangePasswordButton = () => {
       }
       return dataProvider.updatePassword(identity.id);
     },
-    onSuccess: (setPasswordUrl) => {
-      setResetUrl(setPasswordUrl);
+    onSuccess: (result) => {
+      if (result.emailed) {
+        notify("crm.profile.password_reset_email_sent", {
+          type: "success",
+          messageArgs: {
+            _: "We've emailed you a link to reset your password.",
+          },
+        });
+      } else if (result.url) {
+        setResetUrl(result.url);
+      }
     },
     onError: (e) => {
       notify(`${e}`, { type: "error" });

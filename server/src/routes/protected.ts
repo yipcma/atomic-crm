@@ -10,6 +10,7 @@ import {
   updateSalesUser,
   type SaleRow,
 } from "../services/salesUser.js";
+import { isEmailEnabled, sendPasswordResetEmail } from "../email.js";
 import { dataRoutes } from "./data.js";
 
 function identityFrom(sale: SaleRow) {
@@ -107,8 +108,8 @@ protectedRoutes.patch("/users", async (c) => {
   return c.json({ data: sale });
 });
 
-// Generate a set-password link for a user (self-service, or admin for anyone).
-// Returns an invite token the caller turns into a shareable /set-password URL.
+// Reset a password (self-service, or admin for anyone). Emails a reset link when
+// email is configured; otherwise returns the token so the UI can show a link.
 protectedRoutes.patch("/update_password", async (c) => {
   const { sales_id } = await c.req.json<{ sales_id: string | number }>();
   const targetId = String(sales_id);
@@ -120,7 +121,23 @@ protectedRoutes.patch("/update_password", async (c) => {
   }
   const userId = await saleUserId(targetId);
   const inviteToken = await signInviteToken(userId);
-  return c.json({ data: true, invite_token: inviteToken });
+
+  if (isEmailEnabled()) {
+    const { rows } = await query<{ email: string }>(
+      "select email from public.sales where id = $1",
+      [targetId],
+    );
+    const email = rows[0]?.email;
+    if (email) {
+      try {
+        await sendPasswordResetEmail(email, inviteToken);
+        return c.json({ data: true, emailed: true });
+      } catch (error) {
+        console.error("password reset email failed:", error);
+      }
+    }
+  }
+  return c.json({ data: true, emailed: false, invite_token: inviteToken });
 });
 
 // Merge two contacts (formerly the "merge_contacts" edge function).
