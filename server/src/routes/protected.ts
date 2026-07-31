@@ -13,7 +13,7 @@ import {
 import { isEmailEnabled, sendPasswordResetEmail } from "../email.js";
 import { dataRoutes } from "./data.js";
 
-function identityFrom(sale: SaleRow) {
+function identityFrom(sale: SaleRow, superAdmin: boolean) {
   const avatar =
     sale.avatar && typeof sale.avatar === "object"
       ? (sale.avatar as { src?: string }).src
@@ -23,6 +23,7 @@ function identityFrom(sale: SaleRow) {
     fullName: `${sale.first_name} ${sale.last_name}`,
     avatar,
     administrator: sale.administrator,
+    super_admin: superAdmin,
   };
 }
 
@@ -38,7 +39,7 @@ protectedRoutes.get("/auth/identity", async (c) => {
   if (!rows[0]) {
     throw new HTTPException(404, { message: "Account not found" });
   }
-  return c.json(identityFrom(rows[0]));
+  return c.json(identityFrom(rows[0], c.get("sale").superAdmin));
 });
 
 // Create an account manager (formerly the "users" edge function, POST).

@@ -7,6 +7,7 @@ import { loadColumns } from "./columns.js";
 import { requireAuth } from "./auth/middleware.js";
 import { authRoutes } from "./routes/auth.js";
 import { protectedRoutes } from "./routes/protected.js";
+import { adminRoutes } from "./routes/admin.js";
 import { storageRoutes } from "./routes/files.js";
 
 const app = new Hono();
@@ -29,6 +30,7 @@ app.route("/storage", storageRoutes);
 
 // Everything else under /api requires a valid bearer token.
 app.use("/api/*", requireAuth);
+app.route("/api/admin", adminRoutes);
 app.route("/api", protectedRoutes);
 
 app.onError((err, c) => {

@@ -43,6 +43,7 @@ export interface CreateSalesInput {
   disabled?: boolean;
   avatar?: unknown;
   password?: string;
+  emailVerified?: boolean;
 }
 
 export async function createSalesUser(
@@ -60,8 +61,8 @@ export async function createSalesUser(
       throw new HTTPException(409, { message: "Email already in use" });
     }
     const user = await client.query<{ id: string }>(
-      "insert into public.users (email, encrypted_password) values ($1, $2) returning id",
-      [input.email, encrypted],
+      "insert into public.users (email, encrypted_password, email_verified) values ($1, $2, $3) returning id",
+      [input.email, encrypted, input.emailVerified ?? false],
     );
     const userId = user.rows[0].id;
     const created = await client.query<SaleRow>(

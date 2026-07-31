@@ -14,6 +14,7 @@ import {
   establishSession,
   type LoginResult,
 } from "@/components/atomic-crm/providers/railway/authProvider";
+import { CheckYourEmail } from "./CheckYourEmail";
 
 interface RegisterFormData {
   email: string;
@@ -29,6 +30,7 @@ export const RegisterPage = () => {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token") ?? "";
   const [loading, setLoading] = useState(false);
+  const [verifyEmail, setVerifyEmail] = useState<string | null>(null);
   const notify = useNotify();
   const translate = useTranslate();
 
@@ -45,7 +47,7 @@ export const RegisterPage = () => {
   const handleSubmit: SubmitHandler<FieldValues> = async (values) => {
     setLoading(true);
     try {
-      const { json } = await apiJson<LoginResult>(
+      const { json } = await apiJson<LoginResult & { verify?: boolean }>(
         "/api/auth/register",
         jsonRequest("POST", {
           token,
@@ -55,6 +57,10 @@ export const RegisterPage = () => {
           password: values.password,
         }),
       );
+      if (json.verify) {
+        setVerifyEmail(values.email);
+        return;
+      }
       establishSession(json);
       window.location.href = "/";
     } catch (error: any) {
@@ -62,6 +68,10 @@ export const RegisterPage = () => {
       notify(error?.message ?? "ra.auth.sign_in_error", { type: "error" });
     }
   };
+
+  if (verifyEmail) {
+    return <CheckYourEmail email={verifyEmail} />;
+  }
 
   return (
     <div className="min-h-screen flex">
@@ -90,12 +100,16 @@ export const RegisterPage = () => {
               >
                 <div className="grid grid-cols-2 gap-4">
                   <TextInput
-                    label="ra.auth.first_name"
+                    label={translate("crm.auth.first_name", {
+                      _: "First name",
+                    })}
                     source="first_name"
                     validate={required()}
                   />
                   <TextInput
-                    label="ra.auth.last_name"
+                    label={translate("crm.auth.last_name", {
+                      _: "Last name",
+                    })}
                     source="last_name"
                     validate={required()}
                   />

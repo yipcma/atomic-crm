@@ -393,7 +393,7 @@ export const frenchCrmMessages = {
         creating: "Création...",
         initial_user_created: "Utilisateur initial créé avec succès",
       },
-      welcome_title: "Bienvenue sur Atomic CRM",
+      welcome_title: "Bienvenue sur Leaf CRM",
     },
     common: {
       activity: "Activité",
@@ -439,7 +439,7 @@ export const frenchCrmMessages = {
       latest_notes: "Mes dernières notes",
       latest_notes_added_ago: "ajouté %{timeAgo}",
       stepper: {
-        install: "Installer Atomic CRM",
+        install: "Installer Leaf CRM",
         progress: "%{step}/3 terminé",
         whats_next: "Et ensuite ?",
       },

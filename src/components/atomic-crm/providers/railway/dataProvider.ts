@@ -272,9 +272,9 @@ const getDataProviderWithCustomMethods = () => ({
     organization_name,
   }: SignUpData) {
     const { json } = await apiJson<{
-      access_token: string;
-      refresh_token: string;
-      identity: { id: number };
+      verify?: boolean;
+      access_token?: string;
+      refresh_token?: string;
     }>(
       "/api/auth/signup",
       jsonRequest("POST", {
@@ -285,8 +285,19 @@ const getDataProviderWithCustomMethods = () => ({
         organization_name,
       }),
     );
-    setTokens(json.access_token, json.refresh_token);
-    return { id: json.identity.id, email, password };
+    if (json.verify) {
+      return { verify: true };
+    }
+    setTokens(json.access_token as string, json.refresh_token as string);
+    return { verify: false };
+  },
+
+  // Public request to (re)send an account verification email.
+  async resendVerification(email: string): Promise<void> {
+    await apiJson(
+      "/api/auth/resend-verification",
+      jsonRequest("POST", { email }),
+    );
   },
 
   async salesCreate(body: SalesFormData) {

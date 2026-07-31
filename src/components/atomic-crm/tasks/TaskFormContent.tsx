@@ -1,8 +1,10 @@
 import { AutocompleteInput } from "@/components/admin/autocomplete-input";
+import { AutocompleteArrayInput } from "@/components/admin/autocomplete-array-input";
+import { ReferenceArrayInput } from "@/components/admin/reference-array-input";
 import { ReferenceInput } from "@/components/admin/reference-input";
 import { SelectInput } from "@/components/admin/select-input";
 import { TextInput } from "@/components/admin/text-input";
-import { required } from "ra-core";
+import { required, useTranslate } from "ra-core";
 import { DateTimeInput } from "@/components/admin";
 
 import { contactOptionText } from "../misc/ContactOption";
@@ -14,6 +16,7 @@ export const TaskFormContent = ({
   selectContact?: boolean;
 }) => {
   const { taskTypes } = useConfigurationContext();
+  const translate = useTranslate();
   return (
     <div className="flex flex-col gap-4">
       <TextInput
@@ -52,6 +55,25 @@ export const TaskFormContent = ({
           helperText={false}
         />
       </div>
+      <ReferenceArrayInput
+        source="mentions"
+        reference="sales"
+        sort={{ field: "last_name", order: "ASC" }}
+        filter={{ "disabled@neq": true }}
+      >
+        <AutocompleteArrayInput
+          label={translate("resources.tasks.fields.mentions", {
+            _: "Mention teammates",
+          })}
+          optionText={mentionOptionRenderer}
+          helperText={translate("resources.tasks.inputs.mentions_hint", {
+            _: "Mentioned teammates will see this in their activity feed.",
+          })}
+        />
+      </ReferenceArrayInput>
     </div>
   );
 };
+
+const mentionOptionRenderer = (choice: any) =>
+  `${choice.first_name ?? ""} ${choice.last_name ?? ""}`.trim();

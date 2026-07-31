@@ -15,6 +15,8 @@ import { getCurrentDate } from "./utils";
 import { AttachmentField } from "./AttachmentField";
 import { foreignKeyMapping } from "./foreignKeyMapping";
 import { AutocompleteInput, ReferenceInput } from "@/components/admin";
+import { AutocompleteArrayInput } from "@/components/admin/autocomplete-array-input";
+import { ReferenceArrayInput } from "@/components/admin/reference-array-input";
 import { contactOptionText } from "../misc/ContactOption";
 import { validateNoteOrAttachmentRequired } from "./noteModel";
 
@@ -179,6 +181,22 @@ export const NoteInputs = ({
             defaultValue={getCurrentDate()}
           />
         </div>
+        <ReferenceArrayInput
+          source="mentions"
+          reference="sales"
+          sort={{ field: "last_name", order: "ASC" }}
+          filter={{ "disabled@neq": true }}
+        >
+          <AutocompleteArrayInput
+            label={translate("resources.notes.fields.mentions", {
+              _: "Mention teammates",
+            })}
+            optionText={mentionOptionRenderer}
+            helperText={translate("resources.notes.inputs.mentions_hint", {
+              _: "Mentioned teammates will see this in their activity feed.",
+            })}
+          />
+        </ReferenceArrayInput>
         <FileInput
           source="attachments"
           label="resources.notes.fields.attachments"
@@ -198,3 +216,6 @@ const optionRenderer = (choice: any) => {
     </div>
   );
 };
+
+const mentionOptionRenderer = (choice: any) =>
+  `${choice.first_name ?? ""} ${choice.last_name ?? ""}`.trim();

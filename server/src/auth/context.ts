@@ -5,6 +5,8 @@ export interface CurrentSale {
   administrator: boolean;
   disabled: boolean;
   organization_id: number;
+  email: string;
+  superAdmin: boolean;
 }
 
 declare module "hono" {

@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useDataProvider, useLogin, useNotify, useTranslate } from "ra-core";
 import { useForm, type SubmitHandler } from "react-hook-form";
@@ -12,6 +13,7 @@ import { useConfigurationContext } from "../root/ConfigurationContext";
 import type { SignUpData } from "../types";
 import { Notification } from "@/components/admin/notification";
 import { ConfirmationRequired } from "./ConfirmationRequired";
+import { CheckYourEmail } from "./CheckYourEmail";
 import { SSOAuthButton } from "./SSOAuthButton";
 import { googleWorkplaceDomain } from "./authConfig";
 
@@ -21,16 +23,21 @@ export const SignupPage = () => {
   const { darkModeLogo: logo, title } = useConfigurationContext();
   const navigate = useNavigate();
   const translate = useTranslate();
+  const [verifyEmail, setVerifyEmail] = useState<string | null>(null);
 
   const { isPending: isSignUpPending, mutate } = useMutation({
     mutationKey: ["signup"],
     mutationFn: async (data: SignUpData) => {
       return dataProvider.signUp(data);
     },
-    onSuccess: (data) => {
+    onSuccess: (result, variables) => {
+      if (result.verify) {
+        setVerifyEmail(variables.email);
+        return;
+      }
       login({
-        email: data.email,
-        password: data.password,
+        email: variables.email,
+        password: variables.password,
         redirectTo: "/contacts",
       })
         .then(() => {
@@ -79,6 +86,10 @@ export const SignupPage = () => {
     mutate(data);
   };
 
+  if (verifyEmail) {
+    return <CheckYourEmail email={verifyEmail} />;
+  }
+
   return (
     <div className="h-screen p-8">
       <div className="flex items-center gap-4">
@@ -94,7 +105,7 @@ export const SignupPage = () => {
         <div className="max-w-sm mx-auto h-full flex flex-col justify-center gap-4">
           <h1 className="text-2xl font-bold mb-4">
             {translate("crm.auth.welcome_title", {
-              _: "Welcome to Atomic CRM",
+              _: "Welcome to Leaf CRM",
             })}
           </h1>
           <p className="text-base mb-4">

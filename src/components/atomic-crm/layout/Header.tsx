@@ -1,5 +1,5 @@
-import { FileText, Import, Settings, User, Users } from "lucide-react";
-import { CanAccess, useTranslate, useUserMenu } from "ra-core";
+import { FileText, Import, Settings, Shield, User, Users } from "lucide-react";
+import { CanAccess, useGetIdentity, useTranslate, useUserMenu } from "ra-core";
 import { Link, matchPath, useLocation } from "react-router";
 import { RefreshButton } from "@/components/admin/refresh-button";
 import { ThemeModeToggle } from "@/components/admin/theme-mode-toggle";
@@ -8,6 +8,8 @@ import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 import { useConfigurationContext } from "../root/ConfigurationContext";
 import { ImportPage } from "../misc/ImportPage";
+import { SuperAdminOrganizations } from "../misc/SuperAdminOrganizations";
+import type { Identity } from "../providers/railway/authProvider";
 import { ChangelogPage } from "../misc/ChangelogPage";
 
 const Header = () => {
@@ -91,6 +93,7 @@ const Header = () => {
                   <CanAccess resource="configuration" action="edit">
                     <SettingsMenu />
                   </CanAccess>
+                  <SuperAdminMenu />
                   <ImportFromJsonMenuItem />
                   <ChangelogMenuItem />
                 </UserMenu>
@@ -167,6 +170,31 @@ const SettingsMenu = () => {
       <Link to="/settings" className="flex items-center gap-2">
         <Settings />
         {translate("crm.settings.title")}
+      </Link>
+    </DropdownMenuItem>
+  );
+};
+
+const SuperAdminMenu = () => {
+  const translate = useTranslate();
+  const { identity } = useGetIdentity();
+  const userMenuContext = useUserMenu();
+  if (!userMenuContext) {
+    throw new Error("<SuperAdminMenu> must be used inside <UserMenu>");
+  }
+  if ((identity as Identity | undefined)?.super_admin !== true) {
+    return null;
+  }
+  return (
+    <DropdownMenuItem asChild onClick={userMenuContext.onClose}>
+      <Link
+        to={SuperAdminOrganizations.path}
+        className="flex items-center gap-2"
+      >
+        <Shield />
+        {translate("crm.superadmin.organizations_title", {
+          _: "Organizations",
+        })}
       </Link>
     </DropdownMenuItem>
   );

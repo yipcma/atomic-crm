@@ -110,6 +110,7 @@ export type ContactNote = {
   sales_id: Identifier;
   status: string;
   attachments?: AttachmentNote[];
+  mentions?: Identifier[];
 } & Pick<RaRecord, "id">;
 
 export type Deal = {
@@ -134,6 +135,7 @@ export type DealNote = {
   date: string;
   sales_id: Identifier;
   attachments?: AttachmentNote[];
+  mentions?: Identifier[];
 
   // This is defined for compatibility with `ContactNote`
   status?: undefined;
@@ -152,6 +154,7 @@ export type Task = {
   due_date: string;
   done_date?: string | null;
   sales_id?: Identifier;
+  mentions?: Identifier[];
 } & Pick<RaRecord, "id">;
 
 export type ActivityCompanyCreated = {

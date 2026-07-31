@@ -210,27 +210,19 @@ export const createDataProvider = ({
     },
     signUp: async ({
       email,
-      password,
       first_name,
       last_name,
-    }: SignUpData): Promise<{
-      id: number;
-      email: string;
-      password: string;
-    }> => {
-      const user = await baseDataProvider.create("sales", {
+    }: SignUpData): Promise<{ verify: boolean }> => {
+      await baseDataProvider.create("sales", {
         data: {
           email,
           first_name,
           last_name,
         },
       });
-
-      return {
-        ...user.data,
-        password,
-      };
+      return { verify: false };
     },
+    resendVerification: async (): Promise<void> => {},
     salesCreate: async ({ ...data }: SalesFormData): Promise<Sale> => {
       const response = await dataProvider.create("sales", {
         data: {

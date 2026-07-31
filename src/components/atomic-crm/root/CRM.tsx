@@ -13,6 +13,8 @@ import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persi
 import { Admin } from "@/components/admin/admin";
 import { SetPasswordPage } from "../login/SetPasswordPage";
 import { RegisterPage } from "../login/RegisterPage";
+import { VerifyEmailPage } from "../login/VerifyEmailPage";
+import { SuperAdminOrganizations } from "../misc/SuperAdminOrganizations";
 
 import companies from "../companies";
 import contacts from "../contacts";
@@ -249,6 +251,7 @@ const DesktopAdmin = (
         />
         <Route path={SetPasswordPage.path} element={<SetPasswordPage />} />
         <Route path={RegisterPage.path} element={<RegisterPage />} />
+        <Route path={VerifyEmailPage.path} element={<VerifyEmailPage />} />
       </CustomRoutes>
 
       <CustomRoutes>
@@ -256,6 +259,10 @@ const DesktopAdmin = (
         <Route path={SettingsPage.path} element={<SettingsPage />} />
         <Route path={ImportPage.path} element={<ImportPage />} />
         <Route path={ChangelogPage.path} element={<ChangelogPage />} />
+        <Route
+          path={SuperAdminOrganizations.path}
+          element={<SuperAdminOrganizations />}
+        />
       </CustomRoutes>
       <Resource name="deals" {...deals} />
       <Resource name="contacts" {...contacts} />
@@ -309,6 +316,7 @@ const MobileAdmin = (
           />
           <Route path={SetPasswordPage.path} element={<SetPasswordPage />} />
           <Route path={RegisterPage.path} element={<RegisterPage />} />
+          <Route path={VerifyEmailPage.path} element={<VerifyEmailPage />} />
         </CustomRoutes>
         <CustomRoutes>
           <Route
@@ -316,6 +324,10 @@ const MobileAdmin = (
             element={<SettingsPageMobile />}
           />
           <Route path={ChangelogPage.path} element={<ChangelogPage />} />
+          <Route
+            path={SuperAdminOrganizations.path}
+            element={<SuperAdminOrganizations />}
+          />
         </CustomRoutes>
         <Resource
           name="contacts"

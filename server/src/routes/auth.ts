@@ -6,23 +6,31 @@ import {
   signAccessToken,
   signInviteToken,
   signRefreshToken,
+  signVerifyEmailToken,
   verifyInviteToken,
   verifyRefreshToken,
   verifySignupInviteToken,
+  verifyVerifyEmailToken,
 } from "../auth/jwt.js";
 import {
   createOrganization,
   createSalesUser,
   type SaleRow,
 } from "../services/salesUser.js";
-import { isEmailEnabled, sendPasswordResetEmail } from "../email.js";
+import {
+  isEmailEnabled,
+  sendPasswordResetEmail,
+  sendVerificationEmail,
+} from "../email.js";
+import { isSuperAdmin } from "../auth/middleware.js";
 
 interface UserRow {
   id: string;
   encrypted_password: string;
+  email_verified: boolean;
 }
 
-function toIdentity(sale: SaleRow) {
+function toIdentity(sale: SaleRow, superAdmin: boolean) {
   const avatar =
     sale.avatar && typeof sale.avatar === "object"
       ? (sale.avatar as { src?: string }).src
@@ -32,6 +40,7 @@ function toIdentity(sale: SaleRow) {
     fullName: `${sale.first_name} ${sale.last_name}`,
     avatar,
     administrator: sale.administrator,
+    super_admin: superAdmin,
   };
 }
 
@@ -41,6 +50,14 @@ async function saleForUser(userId: string): Promise<SaleRow | undefined> {
     [userId],
   );
   return rows[0];
+}
+
+async function isOrgDisabled(orgId: number): Promise<boolean> {
+  const { rows } = await query<{ disabled: boolean }>(
+    "select disabled from public.organizations where id = $1",
+    [orgId],
+  );
+  return rows[0]?.disabled ?? false;
 }
 
 // Public authentication endpoints (no bearer token required).
@@ -58,7 +75,7 @@ authRoutes.post("/login", async (c) => {
   }
 
   const { rows } = await query<UserRow>(
-    "select id, encrypted_password from public.users where email = $1",
+    "select id, encrypted_password, email_verified from public.users where email = $1",
     [email],
   );
   const user = rows[0];
@@ -73,11 +90,20 @@ authRoutes.post("/login", async (c) => {
   if (sale.disabled) {
     throw new HTTPException(403, { message: "Account disabled" });
   }
+  const superAdmin = isSuperAdmin(sale.email);
+  if (!superAdmin && (await isOrgDisabled(sale.organization_id))) {
+    throw new HTTPException(403, { message: "Organization disabled" });
+  }
+  if (isEmailEnabled() && !user.email_verified && !superAdmin) {
+    throw new HTTPException(403, {
+      message: "Please verify your email before signing in",
+    });
+  }
 
   return c.json({
     access_token: await signAccessToken(user.id),
     refresh_token: await signRefreshToken(user.id),
-    identity: toIdentity(sale),
+    identity: toIdentity(sale, superAdmin),
   });
 });
 
@@ -125,6 +151,8 @@ authRoutes.post("/signup", async (c) => {
     (first_name ? `${first_name}'s Organization` : "My Organization");
   const organizationId = await createOrganization(orgName);
 
+  const superAdmin = isSuperAdmin(email);
+  const emailVerified = !isEmailEnabled() || superAdmin;
   const { sale } = await createSalesUser({
     email,
     password,
@@ -133,13 +161,26 @@ authRoutes.post("/signup", async (c) => {
     administrator: true,
     disabled: false,
     organizationId,
+    emailVerified,
   });
+
+  if (!emailVerified) {
+    try {
+      await sendVerificationEmail(
+        email,
+        await signVerifyEmailToken(sale.user_id),
+      );
+    } catch (error) {
+      console.error("verification email failed:", error);
+    }
+    return c.json({ verify: true, email }, 201);
+  }
 
   return c.json(
     {
       access_token: await signAccessToken(sale.user_id),
       refresh_token: await signRefreshToken(sale.user_id),
-      identity: toIdentity(sale),
+      identity: toIdentity(sale, superAdmin),
     },
     201,
   );
@@ -195,6 +236,8 @@ authRoutes.post("/register", async (c) => {
     });
   }
 
+  const superAdmin = isSuperAdmin(email);
+  const emailVerified = !isEmailEnabled() || superAdmin;
   const { sale } = await createSalesUser({
     email,
     password,
@@ -203,13 +246,26 @@ authRoutes.post("/register", async (c) => {
     administrator: false,
     disabled: false,
     organizationId,
+    emailVerified,
   });
+
+  if (!emailVerified) {
+    try {
+      await sendVerificationEmail(
+        email,
+        await signVerifyEmailToken(sale.user_id),
+      );
+    } catch (error) {
+      console.error("verification email failed:", error);
+    }
+    return c.json({ verify: true, email }, 201);
+  }
 
   return c.json(
     {
       access_token: await signAccessToken(sale.user_id),
       refresh_token: await signRefreshToken(sale.user_id),
-      identity: toIdentity(sale),
+      identity: toIdentity(sale, superAdmin),
     },
     201,
   );
@@ -259,6 +315,59 @@ authRoutes.post("/set-password", async (c) => {
   return c.json({
     access_token: await signAccessToken(userId),
     refresh_token: await signRefreshToken(userId),
-    identity: toIdentity(sale),
+    identity: toIdentity(sale, isSuperAdmin(sale.email)),
   });
+});
+
+// Confirm an email address from the verification link, then log in.
+authRoutes.post("/verify-email", async (c) => {
+  const { token } = await c.req.json<{ token?: string }>();
+  if (!token) {
+    throw new HTTPException(400, { message: "Missing token" });
+  }
+  let userId: string;
+  try {
+    userId = (await verifyVerifyEmailToken(token)).sub;
+  } catch {
+    throw new HTTPException(401, { message: "Invalid or expired link" });
+  }
+  const updated = await query(
+    "update public.users set email_verified = true where id = $1 returning id",
+    [userId],
+  );
+  if (!updated.rowCount) {
+    throw new HTTPException(404, { message: "Account not found" });
+  }
+  const sale = await saleForUser(userId);
+  if (!sale) {
+    throw new HTTPException(404, { message: "Account not found" });
+  }
+  if (sale.disabled) {
+    throw new HTTPException(403, { message: "Account disabled" });
+  }
+  return c.json({
+    access_token: await signAccessToken(userId),
+    refresh_token: await signRefreshToken(userId),
+    identity: toIdentity(sale, isSuperAdmin(sale.email)),
+  });
+});
+
+// Re-send a verification email. Always returns ok (no account enumeration).
+authRoutes.post("/resend-verification", async (c) => {
+  const { email } = await c.req.json<{ email?: string }>();
+  if (email && isEmailEnabled()) {
+    const { rows } = await query<{ id: string; email_verified: boolean }>(
+      "select id, email_verified from public.users where email = $1",
+      [email],
+    );
+    const user = rows[0];
+    if (user && !user.email_verified) {
+      try {
+        await sendVerificationEmail(email, await signVerifyEmailToken(user.id));
+      } catch (error) {
+        console.error("resend verification failed:", error);
+      }
+    }
+  }
+  return c.json({ ok: true });
 });

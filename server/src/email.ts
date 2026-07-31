@@ -50,3 +50,26 @@ export async function sendPasswordResetEmail(
     </div>`;
   await sendEmail(to, "Reset your password", html);
 }
+
+export function verificationLink(token: string): string {
+  return `${env.appUrl}/#/verify-email?token=${encodeURIComponent(token)}`;
+}
+
+export async function sendVerificationEmail(
+  to: string,
+  token: string,
+): Promise<void> {
+  const link = verificationLink(token);
+  const html = `
+    <div style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2 style="font-size: 18px;">Confirm your email</h2>
+      <p>Welcome! Please confirm your email address to activate your account.</p>
+      <p style="margin: 24px 0;">
+        <a href="${link}" style="background: #111; color: #fff; padding: 10px 18px; border-radius: 6px; text-decoration: none;">
+          Verify email
+        </a>
+      </p>
+      <p style="color: #666; font-size: 13px;">If you didn't create this account, you can ignore this email.</p>
+    </div>`;
+  await sendEmail(to, "Verify your email", html);
+}

@@ -387,7 +387,7 @@ export const englishCrmMessages = {
         creating: "Creating...",
         initial_user_created: "Initial user successfully created",
       },
-      welcome_title: "Welcome to Atomic CRM",
+      welcome_title: "Welcome to Leaf CRM",
     },
     common: {
       activity: "Activity",
@@ -432,7 +432,7 @@ export const englishCrmMessages = {
       latest_notes: "My Latest Notes",
       latest_notes_added_ago: "added %{timeAgo}",
       stepper: {
-        install: "Install Atomic CRM",
+        install: "Install Leaf CRM",
         progress: "%{step}/3 done",
         whats_next: "What's next?",
       },

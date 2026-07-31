@@ -23,6 +23,11 @@ export interface SignupInviteClaims extends JWTPayload {
   org: number;
 }
 
+export interface VerifyEmailClaims extends JWTPayload {
+  sub: string; // user id
+  type: "verify-email";
+}
+
 export function signAccessToken(userId: string): Promise<string> {
   return new SignJWT({ type: "access" })
     .setProtectedHeader({ alg: "HS256" })
@@ -96,4 +101,23 @@ export async function verifySignupInviteToken(
     throw new Error("Invalid token type");
   }
   return payload as SignupInviteClaims;
+}
+
+export function signVerifyEmailToken(userId: string): Promise<string> {
+  return new SignJWT({ type: "verify-email" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setSubject(userId)
+    .setIssuedAt()
+    .setExpirationTime(env.inviteTokenTtl)
+    .sign(secret);
+}
+
+export async function verifyVerifyEmailToken(
+  token: string,
+): Promise<VerifyEmailClaims> {
+  const { payload } = await jwtVerify(token, secret);
+  if (payload.type !== "verify-email") {
+    throw new Error("Invalid token type");
+  }
+  return payload as VerifyEmailClaims;
 }

@@ -11,11 +11,12 @@ import {
 const IS_INITIALIZED_CACHE_KEY = "RaStore.auth.is_initialized";
 const CURRENT_IDENTITY_CACHE_KEY = "RaStore.auth.current_identity";
 
-interface Identity {
+export interface Identity {
   id: number;
   fullName: string;
   avatar?: string;
   administrator: boolean;
+  super_admin?: boolean;
 }
 
 export interface LoginResult {
@@ -98,7 +99,12 @@ export const getAuthProvider = (): AuthProvider => ({
     const path = window.location.pathname;
     const hash = window.location.hash;
     // Public onboarding/recovery routes do not require a session.
-    for (const route of ["/set-password", "/register", "/sign-up"]) {
+    for (const route of [
+      "/set-password",
+      "/register",
+      "/sign-up",
+      "/verify-email",
+    ]) {
       if (path === route || hash.includes(`#${route}`)) {
         return;
       }
@@ -129,6 +135,7 @@ export const getAuthProvider = (): AuthProvider => ({
       id: identity.id,
       fullName: identity.fullName,
       avatar: identity.avatar,
+      super_admin: identity.super_admin ?? false,
     };
   },
 

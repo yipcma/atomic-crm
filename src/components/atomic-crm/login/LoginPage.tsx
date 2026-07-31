@@ -99,6 +99,40 @@ export const LoginPage = (props: { redirectTo?: string }) => {
             <img className="h-6 mr-2" src={darkModeLogo} alt={title} />
             {title}
           </div>
+          <div className="relative z-20 mt-auto space-y-6">
+            <h2 className="text-3xl font-semibold leading-tight">
+              {translate("crm.landing.headline", {
+                _: "The simple CRM for growing teams.",
+              })}
+            </h2>
+            <p className="max-w-md text-base text-zinc-300">
+              {translate("crm.landing.subheadline", {
+                _: "Track contacts, companies and deals, collaborate with your team, and keep every conversation in one place.",
+              })}
+            </p>
+            <ul className="space-y-2 text-sm text-zinc-300">
+              <li>
+                {translate("crm.landing.feature_pipeline", {
+                  _: "• Contacts, companies & a visual deal pipeline",
+                })}
+              </li>
+              <li>
+                {translate("crm.landing.feature_collab", {
+                  _: "• Team notes, tasks & @mentions",
+                })}
+              </li>
+              <li>
+                {translate("crm.landing.feature_workspace", {
+                  _: "• Your own private organization workspace",
+                })}
+              </li>
+            </ul>
+            <p className="text-xs text-zinc-500">
+              {translate("crm.landing.built_on", {
+                _: "Built on the open-source Atomic CRM stack.",
+              })}
+            </p>
+          </div>
         </div>
         <div className="flex flex-col justify-center w-full p-4 lg:p-8">
           <div className="w-full space-y-6 lg:mx-auto lg:w-[350px]">
