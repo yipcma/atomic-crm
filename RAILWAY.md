@@ -50,10 +50,16 @@ Migrations run automatically before each deploy (`node dist/migrate.js`).
 
 Open the `web` public URL. On first launch the app has no users, so it shows the
 sign-up page — the first account created becomes the administrator. Additional
-users are created from **Settings → Users**: creating a user produces a
-**set-password invite link** (shown to the admin) to share with the new user. No
-email service is required. Users can also generate a fresh set-password link for
-themselves from their profile.
+users can be onboarded two ways, both email-free:
+
+- **Per-user invite:** Settings → Users → create a user → a copyable
+  **set-password link** is shown to share with that person.
+- **Generic invite:** Settings → Users → **Invite link** → a copyable
+  **self-registration link** anyone can use to create their own (non-admin)
+  account until it expires.
+
+Admins can also delete users (their owned records are kept, just unassigned) and
+users can generate a fresh set-password link for themselves from their profile.
 
 ## Local development
 
@@ -71,7 +77,8 @@ npm run dev                    # Vite on :5173, proxies /api and /storage to the
 - Auth is email + password with JWT (access + refresh tokens). SSO/SAML and the
   MCP/OAuth server were intentionally dropped.
 - New users onboard via a shareable set-password invite link (JWT, `INVITE_TOKEN_TTL`,
-  default 7 days) instead of an email. Password resets issue the same kind of link.
+  default 7 days) or a generic self-registration link (`GENERIC_INVITE_TTL`, default
+  7 days) instead of an email. Password resets issue the same kind of link.
   Wire up SMTP later if you prefer emailed links.
 - Contact avatars can be uploaded/cropped in the contact form; when none is set the
   API still best-effort derives one from Gravatar / email-domain favicon.

@@ -78,6 +78,11 @@ function inviteUrl(token: string): string {
   return `${window.location.origin}/set-password?token=${token}`;
 }
 
+// Turn a generic invite token into a shareable self-registration URL.
+function registerUrl(token: string): string {
+  return `${window.location.origin}/register?token=${token}`;
+}
+
 function parseTotal(headers: Headers, fallback: number): number {
   const range = headers.get("Content-Range");
   const total = range?.split("/")[1];
@@ -224,6 +229,38 @@ const getDataProviderWithCustomMethods = () => ({
       return { data: data.map(remapActivity), total };
     }
     return baseDataProvider.getList(resource, params);
+  },
+
+  // Deleting a sale removes its auth user too, via the dedicated users endpoint.
+  async delete(resource: string, params: any) {
+    if (resource === "sales") {
+      const { json } = await apiJson(`/api/users/${params.id}`, {
+        method: "DELETE",
+      });
+      return { data: json?.data ?? { id: params.id } };
+    }
+    return baseDataProvider.delete(resource, params);
+  },
+
+  async deleteMany(resource: string, params: any) {
+    if (resource === "sales") {
+      await Promise.all(
+        params.ids.map((id: Identifier) =>
+          apiJson(`/api/users/${id}`, { method: "DELETE" }),
+        ),
+      );
+      return { data: params.ids };
+    }
+    return baseDataProvider.deleteMany(resource, params);
+  },
+
+  // Generate a generic, shareable link that lets anyone self-register.
+  async genericInvite(): Promise<string> {
+    const { json } = await apiJson<{ invite_token: string }>(
+      "/api/users/generic-invite",
+      jsonRequest("POST", {}),
+    );
+    return registerUrl(json.invite_token);
   },
 
   async signUp({ email, password, first_name, last_name }: SignUpData) {

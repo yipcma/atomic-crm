@@ -7,6 +7,7 @@ import {
   signRefreshToken,
   verifyInviteToken,
   verifyRefreshToken,
+  verifySignupInviteToken,
 } from "../auth/jwt.js";
 import {
   countUsers,
@@ -122,6 +123,53 @@ authRoutes.post("/signup", async (c) => {
     first_name: first_name ?? "",
     last_name: last_name ?? "",
     administrator: true,
+    disabled: false,
+  });
+
+  return c.json(
+    {
+      access_token: await signAccessToken(sale.user_id),
+      refresh_token: await signRefreshToken(sale.user_id),
+      identity: toIdentity(sale),
+    },
+    201,
+  );
+});
+
+// Self-registration via a generic shared invite link (non-admin accounts).
+authRoutes.post("/register", async (c) => {
+  const { token, email, password, first_name, last_name } = await c.req.json<{
+    token?: string;
+    email?: string;
+    password?: string;
+    first_name?: string;
+    last_name?: string;
+  }>();
+  if (!token) {
+    throw new HTTPException(400, { message: "Missing invite token" });
+  }
+  try {
+    await verifySignupInviteToken(token);
+  } catch {
+    throw new HTTPException(401, { message: "Invalid or expired invite link" });
+  }
+  if (!email || !password) {
+    throw new HTTPException(400, {
+      message: "Email and password are required",
+    });
+  }
+  if (password.length < 8) {
+    throw new HTTPException(400, {
+      message: "Password must be at least 8 characters",
+    });
+  }
+
+  const { sale } = await createSalesUser({
+    email,
+    password,
+    first_name: first_name ?? "",
+    last_name: last_name ?? "",
+    administrator: false,
     disabled: false,
   });
 

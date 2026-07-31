@@ -152,6 +152,63 @@ export async function saleUserId(saleId: string): Promise<string> {
   return rows[0].user_id;
 }
 
+// Tables whose sales_id ownership must be released before a sale is removed.
+const OWNED_TABLES = [
+  "companies",
+  "contacts",
+  "deals",
+  "contact_notes",
+  "deal_notes",
+  "tasks",
+] as const;
+
+// Hard-delete an account manager: release owned records (kept, unassigned),
+// then delete the auth user (which cascade-deletes the sale row).
+export async function deleteSalesUser(
+  saleId: string,
+  currentSaleId: number,
+): Promise<void> {
+  await withTransaction(async (client) => {
+    const { rows } = await client.query<{
+      id: number;
+      user_id: string;
+      administrator: boolean;
+    }>("select id, user_id, administrator from public.sales where id = $1", [
+      saleId,
+    ]);
+    const sale = rows[0];
+    if (!sale) {
+      throw new HTTPException(404, { message: "User not found" });
+    }
+    if (sale.id === currentSaleId) {
+      throw new HTTPException(400, {
+        message: "You cannot delete your own account",
+      });
+    }
+    if (sale.administrator) {
+      const { rows: adminRows } = await client.query<{ count: number }>(
+        "select count(*)::int as count from public.sales where administrator = true",
+      );
+      if ((adminRows[0]?.count ?? 0) <= 1) {
+        throw new HTTPException(400, {
+          message: "Cannot delete the last administrator",
+        });
+      }
+    }
+
+    for (const table of OWNED_TABLES) {
+      await client.query(
+        `update public.${table} set sales_id = null where sales_id = $1`,
+        [saleId],
+      );
+    }
+
+    await client.query("delete from public.users where id = $1", [
+      sale.user_id,
+    ]);
+  });
+}
+
 export async function resetSalesPassword(saleId: string): Promise<string> {
   const password = generatePassword();
   const encrypted = await hashPassword(password);

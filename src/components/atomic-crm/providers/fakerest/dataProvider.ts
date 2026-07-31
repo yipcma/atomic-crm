@@ -294,6 +294,9 @@ export const createDataProvider = ({
 
       return "demo_newPassword";
     },
+    genericInvite: async (): Promise<string> => {
+      return `${window.location.origin}/register?token=demo`;
+    },
     mergeContacts: async (sourceId: Identifier, targetId: Identifier) => {
       return mergeContacts(sourceId, targetId, baseDataProvider);
     },

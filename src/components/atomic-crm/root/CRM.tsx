@@ -12,6 +12,7 @@ import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
 import { Admin } from "@/components/admin/admin";
 import { SetPasswordPage } from "../login/SetPasswordPage";
+import { RegisterPage } from "../login/RegisterPage";
 
 import companies from "../companies";
 import contacts from "../contacts";
@@ -247,6 +248,7 @@ const DesktopAdmin = (
           element={<ConfirmationRequired />}
         />
         <Route path={SetPasswordPage.path} element={<SetPasswordPage />} />
+        <Route path={RegisterPage.path} element={<RegisterPage />} />
       </CustomRoutes>
 
       <CustomRoutes>
@@ -306,6 +308,7 @@ const MobileAdmin = (
             element={<ConfirmationRequired />}
           />
           <Route path={SetPasswordPage.path} element={<SetPasswordPage />} />
+          <Route path={RegisterPage.path} element={<RegisterPage />} />
         </CustomRoutes>
         <CustomRoutes>
           <Route

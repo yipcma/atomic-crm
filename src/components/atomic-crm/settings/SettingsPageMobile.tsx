@@ -45,6 +45,7 @@ import { MobileContent } from "../layout/MobileContent";
 import MobileHeader from "../layout/MobileHeader";
 import { ChangelogPage } from "../misc/ChangelogPage";
 import ImageEditorField from "../misc/ImageEditorField";
+import { ShareLinkDialog } from "../misc/ShareLinkDialog";
 import type { CrmDataProvider } from "../providers/types";
 import type { SalesFormData } from "../types";
 
@@ -53,6 +54,7 @@ const ChangePasswordButton = () => {
   const notify = useNotify();
   const { identity } = useGetIdentity();
   const dataProvider = useDataProvider<CrmDataProvider>();
+  const [resetUrl, setResetUrl] = useState<string | null>(null);
 
   const { mutate: updatePassword } = useMutation({
     mutationKey: ["updatePassword"],
@@ -67,13 +69,7 @@ const ChangePasswordButton = () => {
       return dataProvider.updatePassword(identity.id);
     },
     onSuccess: (setPasswordUrl) => {
-      notify("crm.profile.password_reset_sent", {
-        type: "success",
-        autoHideDuration: 0,
-        messageArgs: {
-          _: `Use this link to set a new password: ${setPasswordUrl}`,
-        },
-      });
+      setResetUrl(setPasswordUrl);
     },
     onError: (e) => {
       notify(`${e}`, { type: "error" });
@@ -81,14 +77,27 @@ const ChangePasswordButton = () => {
   });
 
   return (
-    <Button
-      variant="outline"
-      className="w-full text-base h-auto"
-      onClick={() => updatePassword()}
-    >
-      <KeyRound className="size-5 mr-3" />
-      {translate("crm.profile.password.change")}
-    </Button>
+    <>
+      <Button
+        variant="outline"
+        className="w-full text-base h-auto"
+        onClick={() => updatePassword()}
+      >
+        <KeyRound className="size-5 mr-3" />
+        {translate("crm.profile.password.change")}
+      </Button>
+      <ShareLinkDialog
+        open={resetUrl != null}
+        onClose={() => setResetUrl(null)}
+        title={translate("crm.profile.password.reset_title", {
+          _: "Set a new password",
+        })}
+        description={translate("crm.profile.password.reset_description", {
+          _: "Open this link to choose a new password.",
+        })}
+        url={resetUrl ?? ""}
+      />
+    </>
   );
 };
 
@@ -112,7 +121,6 @@ export const SettingsPageMobile = () => {
             <ProfileSection />
             <PreferencesSection />
             <InboundEmailSection />
-            <McpServerSection />
             <AboutSection />
           </div>
 
@@ -471,28 +479,6 @@ const InboundEmailSection = () => {
       </p>
       <ItemGroup className="rounded-lg border overflow-hidden">
         <CopyPasteRow value={import.meta.env.VITE_INBOUND_EMAIL} />
-      </ItemGroup>
-    </div>
-  );
-};
-
-const McpServerSection = () => {
-  const translate = useTranslate();
-
-  return (
-    <div>
-      <SectionLabel>
-        {translate("crm.profile.mcp.title", { _: "MCP Server" })}
-      </SectionLabel>
-      <p className="text-sm text-muted-foreground mb-2 px-1">
-        {translate("crm.profile.mcp.description", {
-          _: "Use this URL to connect your AI assistant to your CRM data via the Model Context Protocol (MCP).",
-        })}
-      </p>
-      <ItemGroup className="rounded-lg border overflow-hidden">
-        <CopyPasteRow
-          value={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mcp`}
-        />
       </ItemGroup>
     </div>
   );

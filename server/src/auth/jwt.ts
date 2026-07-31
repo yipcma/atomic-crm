@@ -18,6 +18,10 @@ export interface InviteClaims extends JWTPayload {
   type: "invite";
 }
 
+export interface SignupInviteClaims extends JWTPayload {
+  type: "signup-invite";
+}
+
 export function signAccessToken(userId: string): Promise<string> {
   return new SignJWT({ type: "access" })
     .setProtectedHeader({ alg: "HS256" })
@@ -71,4 +75,24 @@ export async function verifyInviteToken(token: string): Promise<InviteClaims> {
     throw new Error("Invalid token type");
   }
   return payload as InviteClaims;
+}
+
+// Generic, user-agnostic invite an admin shares so anyone with the link can
+// self-register a (non-admin) account until it expires.
+export function signSignupInviteToken(): Promise<string> {
+  return new SignJWT({ type: "signup-invite" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(env.genericInviteTtl)
+    .sign(secret);
+}
+
+export async function verifySignupInviteToken(
+  token: string,
+): Promise<SignupInviteClaims> {
+  const { payload } = await jwtVerify(token, secret);
+  if (payload.type !== "signup-invite") {
+    throw new Error("Invalid token type");
+  }
+  return payload as SignupInviteClaims;
 }

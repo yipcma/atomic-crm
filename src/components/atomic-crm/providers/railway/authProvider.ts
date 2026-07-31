@@ -98,7 +98,7 @@ export const getAuthProvider = (): AuthProvider => ({
     const path = window.location.pathname;
     const hash = window.location.hash;
     // Public onboarding/recovery routes do not require a session.
-    for (const route of ["/set-password", "/forgot-password", "/sign-up"]) {
+    for (const route of ["/set-password", "/register", "/sign-up"]) {
       if (path === route || hash.includes(`#${route}`)) {
         return;
       }

@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/tooltip";
 
 import ImageEditorField from "../misc/ImageEditorField";
+import { ShareLinkDialog } from "../misc/ShareLinkDialog";
 import type { CrmDataProvider } from "../providers/types";
 import type { Sale, SalesFormData } from "../types";
 
@@ -105,6 +106,7 @@ const ProfileForm = ({
   const { identity, refetch } = useGetIdentity();
   const { isDirty } = useFormState();
   const dataProvider = useDataProvider<CrmDataProvider>();
+  const [resetUrl, setResetUrl] = useState<string | null>(null);
 
   const { mutate: updatePassword } = useMutation({
     mutationKey: ["updatePassword"],
@@ -119,13 +121,7 @@ const ProfileForm = ({
       return dataProvider.updatePassword(identity.id);
     },
     onSuccess: (setPasswordUrl) => {
-      notify("crm.profile.password_reset_sent", {
-        type: "success",
-        autoHideDuration: 0,
-        messageArgs: {
-          _: `Use this link to set a new password: ${setPasswordUrl}`,
-        },
-      });
+      setResetUrl(setPasswordUrl);
     },
     onError: (e) => {
       notify(`${e}`, {
@@ -250,25 +246,17 @@ const ProfileForm = ({
           </CardContent>
         </Card>
       )}
-      <Card>
-        <CardContent>
-          <div className="space-y-4 justify-between">
-            <h2 className="text-xl font-semibold text-muted-foreground">
-              {translate("crm.profile.mcp.title", {
-                _: "MCP Server",
-              })}
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {translate("crm.profile.mcp.description", {
-                _: "Use this URL to connect your AI assistant to your CRM data via the Model Context Protocol (MCP).",
-              })}
-            </p>
-            <CopyPaste
-              value={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mcp`}
-            />
-          </div>
-        </CardContent>
-      </Card>
+      <ShareLinkDialog
+        open={resetUrl != null}
+        onClose={() => setResetUrl(null)}
+        title={translate("crm.profile.password.reset_title", {
+          _: "Set a new password",
+        })}
+        description={translate("crm.profile.password.reset_description", {
+          _: "Open this link to choose a new password.",
+        })}
+        url={resetUrl ?? ""}
+      />
     </div>
   );
 };

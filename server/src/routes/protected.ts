@@ -2,9 +2,10 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { query } from "../db.js";
 import { requireAdmin } from "../auth/middleware.js";
-import { signInviteToken } from "../auth/jwt.js";
+import { signInviteToken, signSignupInviteToken } from "../auth/jwt.js";
 import {
   createSalesUser,
+  deleteSalesUser,
   saleUserId,
   updateSalesUser,
   type SaleRow,
@@ -65,6 +66,20 @@ protectedRoutes.post("/users", async (c) => {
   // The new user has no usable password yet; they set one via this invite token.
   const inviteToken = await signInviteToken(sale.user_id);
   return c.json({ data: sale, invite_token: inviteToken }, 201);
+});
+
+// Generate a generic, shareable self-registration invite link (admin only).
+protectedRoutes.post("/users/generic-invite", async (c) => {
+  requireAdmin(c);
+  const inviteToken = await signSignupInviteToken();
+  return c.json({ invite_token: inviteToken });
+});
+
+// Delete an account manager (admin only). Owned records are kept but unassigned.
+protectedRoutes.delete("/users/:id", async (c) => {
+  requireAdmin(c);
+  await deleteSalesUser(c.req.param("id"), c.get("sale").id);
+  return c.json({ data: { id: c.req.param("id") } });
 });
 
 // Update an account manager (formerly the "users" edge function, PATCH).
