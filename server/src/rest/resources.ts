@@ -20,3 +20,26 @@ export const RESOURCES: Record<string, ResourceDef> = {
 export function getResource(name: string): ResourceDef | undefined {
   return RESOURCES[name];
 }
+
+// Tenant isolation in crud.ts appends `organization_id = $n` unconditionally.
+// That is only safe if every exposed source actually has the column, so prove
+// it at boot: a resource added without it must crash the deploy rather than
+// silently serve every tenant's rows.
+export function assertTenantScoped(
+  hasColumn: (source: string, column: string) => boolean,
+): void {
+  const missing: string[] = [];
+  for (const [name, def] of Object.entries(RESOURCES)) {
+    for (const source of new Set([def.table, def.readSource])) {
+      if (!hasColumn(source, "organization_id")) {
+        missing.push(`${name} -> ${source}`);
+      }
+    }
+  }
+  if (missing.length > 0) {
+    throw new Error(
+      `Refusing to start: these resources have no organization_id column, ` +
+        `so they cannot be tenant-scoped: ${missing.join(", ")}`,
+    );
+  }
+}

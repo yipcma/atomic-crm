@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { HTTPException } from "hono/http-exception";
 import { query, withTransaction } from "../db.js";
+import { isSuperAdmin } from "../env.js";
 import { hashPassword } from "../auth/password.js";
 
 export interface SaleRow {
@@ -124,10 +125,23 @@ export async function updateSalesUser(
     }
 
     if (patch.email && patch.email !== sale.email) {
-      await client.query("update public.users set email = $1 where id = $2", [
-        patch.email,
-        sale.user_id,
-      ]);
+      // Platform superadmin is derived from the email address, so an admin who
+      // could rename into a SUPERADMIN_EMAILS entry would escalate themselves.
+      if (isSuperAdmin(patch.email)) {
+        throw new HTTPException(403, { message: "Address not available" });
+      }
+      const clash = await client.query(
+        "select 1 from public.users where email = $1 and id <> $2",
+        [patch.email, sale.user_id],
+      );
+      if (clash.rowCount) {
+        throw new HTTPException(409, { message: "Email already in use" });
+      }
+      // The new address is unproven until confirmed.
+      await client.query(
+        "update public.users set email = $1, email_verified = false where id = $2",
+        [patch.email, sale.user_id],
+      );
     }
 
     const assignments: string[] = [];
@@ -227,21 +241,4 @@ export async function deleteSalesUser(
       sale.user_id,
     ]);
   });
-}
-
-export async function resetSalesPassword(saleId: string): Promise<string> {
-  const password = generatePassword();
-  const encrypted = await hashPassword(password);
-  const { rows } = await query<{ user_id: string }>(
-    "select user_id from public.sales where id = $1",
-    [saleId],
-  );
-  if (!rows[0]) {
-    throw new HTTPException(404, { message: "User not found" });
-  }
-  await query("update public.users set encrypted_password = $1 where id = $2", [
-    encrypted,
-    rows[0].user_id,
-  ]);
-  return password;
 }

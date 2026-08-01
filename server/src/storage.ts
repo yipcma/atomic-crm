@@ -4,13 +4,16 @@ import { basename, extname, join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { env } from "./env.js";
 
+// Deliberately no ".svg" (nor html/xhtml/xml): an SVG is an active document, and
+// attachments are served from the same origin as the SPA, so serving one as
+// image/svg+xml would let an uploader run script against a viewer's session.
+// Anything not listed here degrades to application/octet-stream.
 const CONTENT_TYPES: Record<string, string> = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".gif": "image/gif",
   ".webp": "image/webp",
-  ".svg": "image/svg+xml",
   ".pdf": "application/pdf",
   ".txt": "text/plain; charset=utf-8",
   ".csv": "text/csv; charset=utf-8",
@@ -47,19 +50,20 @@ export interface StoredFile {
   type: string;
 }
 
+// `ext` is chosen by the caller from its MIME allowlist, never taken from the
+// client's filename — otherwise an uploader controls the extension, and the
+// extension is what contentTypeFor() uses to pick the response Content-Type.
 export async function saveFile(
   buffer: Buffer,
-  originalName: string,
-  mimeType?: string,
+  ext: string,
 ): Promise<StoredFile> {
   await ensureDir();
-  const ext = extname(originalName);
   const name = `${randomUUID()}${ext}`;
   await writeFile(resolveSafe(name), buffer);
   return {
     path: name,
     src: `/storage/attachments/${name}`,
-    type: mimeType || contentTypeFor(name),
+    type: contentTypeFor(name),
   };
 }
 

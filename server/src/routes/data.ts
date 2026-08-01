@@ -10,6 +10,7 @@ import {
   type WriteContext,
 } from "../rest/crud.js";
 import { query } from "../db.js";
+import { requireAdmin } from "../auth/middleware.js";
 import { deleteFiles } from "../storage.js";
 import {
   enrichCompanyLogo,
@@ -132,6 +133,8 @@ dataRoutes.get("/configuration/:id", async (c) => {
 });
 
 dataRoutes.put("/configuration/:id", async (c) => {
+  // Org-wide settings (branding, deal stages, task types): admins only.
+  requireAdmin(c);
   const orgId = c.get("sale").organization_id;
   const body = await c.req.json<{ config?: unknown }>();
   const { rows } = await query<{ config: unknown }>(

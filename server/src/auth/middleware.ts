@@ -1,7 +1,7 @@
 import type { Context, MiddlewareHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { query } from "../db.js";
-import { env } from "../env.js";
+import { isSuperAdmin } from "../env.js";
 import { verifyAccessToken } from "./jwt.js";
 import type { CurrentSale } from "./context.js";
 
@@ -14,9 +14,8 @@ interface SaleRow {
   org_disabled: boolean;
 }
 
-export function isSuperAdmin(email: string): boolean {
-  return env.superAdminEmails.includes(email.toLowerCase());
-}
+// Re-exported for the many call sites that already import it from here.
+export { isSuperAdmin };
 
 async function loadSale(userId: string): Promise<SaleRow | undefined> {
   const { rows } = await query<SaleRow>(

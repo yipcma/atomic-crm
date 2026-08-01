@@ -27,3 +27,9 @@ export const env = {
   // Best-effort avatar/logo enrichment via favicon/gravatar lookups.
   enrichAvatars: process.env.ENRICH_AVATARS !== "false",
 };
+
+// Lives here rather than in auth/middleware.ts so the services layer can call it
+// without importing HTTP middleware.
+export function isSuperAdmin(email: string): boolean {
+  return env.superAdminEmails.includes(email.trim().toLowerCase());
+}
