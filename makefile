@@ -52,8 +52,6 @@ start-app-e2e-ci: build-e2e ## start the app pointing to the e2e supabase instan
 
 start: start-supabase start-app ## start the stack locally
 
-start-demo: ## start the app locally in demo mode
-	npm run dev:demo
 
 stop-supabase: ## stop local supabase
 	npx supabase stop
@@ -88,8 +86,6 @@ build: ## build the app
 build-e2e: ## build the app in e2e mode (with the e2e supabase config)
 	@$(call run-silent,npm run build:e2e,build-e2e)
 
-build-demo: ## build the app in demo mode
-	npm run build:demo
 
 prod-start: build supabase-deploy
 	open http://127.0.0.1:3000 && npx serve -l tcp://127.0.0.1:3000 dist

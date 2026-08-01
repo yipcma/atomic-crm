@@ -14,8 +14,6 @@ import type { SignUpData } from "../types";
 import { Notification } from "@/components/admin/notification";
 import { ConfirmationRequired } from "./ConfirmationRequired";
 import { CheckYourEmail } from "./CheckYourEmail";
-import { SSOAuthButton } from "./SSOAuthButton";
-import { googleWorkplaceDomain } from "./authConfig";
 
 export const SignupPage = () => {
   const queryClient = useQueryClient();
@@ -186,16 +184,6 @@ export const SignupPage = () => {
                   })
                 )}
               </Button>
-              {googleWorkplaceDomain ? (
-                <SSOAuthButton
-                  className="w-full"
-                  domain={googleWorkplaceDomain}
-                >
-                  {translate("crm.auth.sign_in_google_workspace", {
-                    _: "Sign in with Google Workplace",
-                  })}
-                </SSOAuthButton>
-              ) : null}
             </div>
           </form>
         </div>

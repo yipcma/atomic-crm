@@ -48,14 +48,6 @@ export default defineConfig({
       manifest: false, // Use existing manifest.json from public/
     }),
   ],
-  define:
-    process.env.NODE_ENV === "production"
-      ? {
-          "import.meta.env.VITE_IS_DEMO": JSON.stringify(
-            process.env.VITE_IS_DEMO,
-          ),
-        }
-      : undefined,
   // Must be absolute: the app is path-routed (ra-core mounts a BrowserRouter),
   // so with "./" a hard load of /contacts/123/show resolves asset URLs against
   // /contacts/123/ and Caddy's SPA fallback returns HTML for a module script.

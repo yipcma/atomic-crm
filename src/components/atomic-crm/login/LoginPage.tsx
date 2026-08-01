@@ -6,12 +6,7 @@ import { Button } from "@/components/ui/button";
 import { TextInput } from "@/components/admin/text-input";
 import { Notification } from "@/components/admin/notification";
 import { useConfigurationContext } from "@/components/atomic-crm/root/ConfigurationContext.tsx";
-import { SSOAuthButton } from "./SSOAuthButton";
 import { ForgotPasswordDialog } from "./ForgotPasswordDialog";
-import {
-  disableEmailPasswordAuthentication,
-  googleWorkplaceDomain,
-} from "./authConfig";
 
 /**
  * Login page displayed when authentication is enabled and the user is not authenticated.
@@ -141,59 +136,46 @@ export const LoginPage = (props: { redirectTo?: string }) => {
                 {translate("ra.auth.sign_in")}
               </h1>
             </div>
-            {disableEmailPasswordAuthentication ? null : (
-              <Form className="space-y-8" onSubmit={handleSubmit}>
-                <TextInput
-                  label="ra.auth.email"
-                  source="email"
-                  type="email"
-                  validate={required()}
-                />
-                <TextInput
-                  label="ra.auth.password"
-                  source="password"
-                  type="password"
-                  validate={required()}
-                />
-                <div className="flex flex-col gap-4">
-                  <Button
-                    type="submit"
-                    className="cursor-pointer"
-                    disabled={loading}
-                  >
-                    {translate("ra.auth.sign_in")}
-                  </Button>
-                </div>
-              </Form>
-            )}
-            {disableEmailPasswordAuthentication ? null : (
-              <button
-                type="button"
-                onClick={() => setForgotOpen(true)}
-                className="block w-full text-sm text-center text-muted-foreground hover:underline"
-              >
-                {translate("crm.auth.forgot_password", {
-                  _: "Forgot password?",
-                })}
-              </button>
-            )}
-            {disableEmailPasswordAuthentication ? null : (
-              <Link
-                to="/sign-up"
-                className="block w-full text-sm text-center text-muted-foreground hover:underline"
-              >
-                {translate("crm.auth.create_organization_link", {
-                  _: "Create an organization",
-                })}
-              </Link>
-            )}
-            {googleWorkplaceDomain ? (
-              <SSOAuthButton className="w-full" domain={googleWorkplaceDomain}>
-                {translate("crm.auth.sign_in_google_workspace", {
-                  _: "Sign in with Google Workplace",
-                })}
-              </SSOAuthButton>
-            ) : null}
+            <Form className="space-y-8" onSubmit={handleSubmit}>
+              <TextInput
+                label="ra.auth.email"
+                source="email"
+                type="email"
+                validate={required()}
+              />
+              <TextInput
+                label="ra.auth.password"
+                source="password"
+                type="password"
+                validate={required()}
+              />
+              <div className="flex flex-col gap-4">
+                <Button
+                  type="submit"
+                  className="cursor-pointer"
+                  disabled={loading}
+                >
+                  {translate("ra.auth.sign_in")}
+                </Button>
+              </div>
+            </Form>
+            <button
+              type="button"
+              onClick={() => setForgotOpen(true)}
+              className="block w-full text-sm text-center text-muted-foreground hover:underline"
+            >
+              {translate("crm.auth.forgot_password", {
+                _: "Forgot password?",
+              })}
+            </button>
+            <Link
+              to="/sign-up"
+              className="block w-full text-sm text-center text-muted-foreground hover:underline"
+            >
+              {translate("crm.auth.create_organization_link", {
+                _: "Create an organization",
+              })}
+            </Link>
           </div>
         </div>
       </div>
