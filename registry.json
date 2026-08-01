@@ -330,10 +330,6 @@
           "type": "registry:component"
         },
         {
-          "path": "src/components/atomic-crm/providers/commons/attachments.ts",
-          "type": "registry:component"
-        },
-        {
           "path": "src/components/atomic-crm/providers/commons/activity.ts",
           "type": "registry:component"
         },
@@ -490,10 +486,6 @@
           "type": "registry:component"
         },
         {
-          "path": "src/components/atomic-crm/login/authConfig.ts",
-          "type": "registry:component"
-        },
-        {
           "path": "src/components/atomic-crm/login/VerifyEmailPage.tsx",
           "type": "registry:component"
         },
@@ -507,10 +499,6 @@
         },
         {
           "path": "src/components/atomic-crm/login/SetPasswordPage.tsx",
-          "type": "registry:component"
-        },
-        {
-          "path": "src/components/atomic-crm/login/SSOAuthButton.tsx",
           "type": "registry:component"
         },
         {
@@ -631,10 +619,6 @@
         },
         {
           "path": "src/components/atomic-crm/deals/ContactList.tsx",
-          "type": "registry:component"
-        },
-        {
-          "path": "src/components/atomic-crm/dashboard/Welcome.tsx",
           "type": "registry:component"
         },
         {

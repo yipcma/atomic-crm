@@ -4,39 +4,36 @@ test("user adds a tag to several contacts", async ({
   page,
   isMobile,
   createContact,
-  createSales,
+  createOrganization,
+  signIn,
   menu,
   dismissToast,
 }) => {
   test.skip(isMobile, "Bulk tag is only available on desktop");
 
-  const sales = await createSales({
+  const org = await createOrganization({
     email: "john@doe.com",
     first_name: "John",
     last_name: "Doe",
-    password: "password",
   });
 
   await createContact({
     first_name: "Ada",
     last_name: "Lovelace",
-    sales_id: sales.id,
     title: "CTO",
+    token: org.accessToken,
   });
   await createContact({
     first_name: "Grace",
     last_name: "Hopper",
-    sales_id: sales.id,
     title: "Rear Admiral",
+    token: org.accessToken,
   });
 
+  await signIn(org);
   await page.goto("/");
 
-  await page.getByLabel("Email").fill("john@doe.com");
-  await page.getByLabel("Password").fill("password");
-  await page.getByRole("button", { name: "Sign in" }).click();
-
-  await expect(page).toHaveTitle(/Atomic CRM/);
+  await expect(page).toHaveTitle(/Leaf CRM/);
   await expect(page.getByRole("link", { name: "Contacts" })).toBeVisible();
 
   await menu.goToContacts();

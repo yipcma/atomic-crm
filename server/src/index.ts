@@ -95,6 +95,17 @@ app.onError((err, c) => {
   if (err instanceof SyntaxError) {
     return c.json({ message: "Invalid JSON body" }, 400);
   }
+  // Integrity violations are the client naming something invalid -- most often
+  // a foreign key pointing outside the caller's organization, which the
+  // composite keys from migration 0006 reject. Surfacing these as 500s would
+  // both hide the cause from the client and read as a server fault.
+  const code = (err as { code?: string }).code;
+  if (code === "23503" || code === "23502" || code === "23514") {
+    return c.json({ message: "Invalid or unknown reference in request" }, 400);
+  }
+  if (code === "23505") {
+    return c.json({ message: "That record already exists" }, 409);
+  }
   console.error("Unhandled error:", err);
   return c.json({ message: "Internal server error" }, 500);
 });

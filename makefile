@@ -41,44 +41,13 @@ supabase-reset-database: ## reset (and clear!) the database
 start-app: ## start the app locally
 	npm run dev
 
-start-app-e2e: ## start the app pointing to the e2e supabase instance
-	npx vite --port 5175 --force --mode e2e &
+e2e-up: ## bring up the real e2e stack (postgres + api + the built SPA behind Caddy)
+	docker compose --profile e2e up -d --build --wait
+	docker compose exec -T db psql -U crm -d crm -c "drop database if exists crm_e2e" -c "create database crm_e2e" >/dev/null
+	DATABASE_URL=postgres://crm:crm@localhost:5432/crm_e2e JWT_SECRET=e2e-secret npm --prefix server run migrate
 
-stop-app-e2e:
-	kill $$(lsof -t -i:5175)
-
-start-app-e2e-ci: build-e2e ## start the app pointing to the e2e supabase instance in CI mode (no open, no watch)
-	npx serve -l 5175 -L -s dist &
-
-start: start-supabase start-app ## start the stack locally
-
-
-stop-supabase: ## stop local supabase
-	npx supabase stop
-
-stop: stop-supabase ## stop the stack locally
-
-start-supabase-e2e: ## start a separate supabase instance for e2e (fresh DB every run)
-	@npx supabase stop --workdir .supabase-e2e --no-backup 2>/dev/null || true
-	rm -rf .supabase-e2e/supabase
-	mkdir -p .supabase-e2e/supabase
-	cp supabase/config.e2e.toml .supabase-e2e/supabase/config.toml
-	cp -r supabase/migrations .supabase-e2e/supabase/migrations
-	cp -r supabase/schemas .supabase-e2e/supabase/schemas
-	cp -r supabase/functions .supabase-e2e/supabase/functions
-	cp -r supabase/templates .supabase-e2e/supabase/templates
-	cp supabase/seed.sql .supabase-e2e/supabase/seed.sql
-	cp supabase/signing_keys.json .supabase-e2e/supabase/signing_keys.json
-	@$(call run-silent-tty,npx supabase start --workdir .supabase-e2e,supabase-e2e)
-
-stop-supabase-e2e: ## stop the e2e supabase instance
-	npx supabase stop --workdir .supabase-e2e --no-backup
-
-start-e2e: start-supabase-e2e start-app-e2e ## start the stack in e2e mode (fresh supabase instance + app pointing to it)
-
-start-e2e-ci: start-supabase-e2e start-app-e2e-ci ## start the stack in e2e mode in CI (fresh supabase instance + built app pointing to it)
-
-stop-e2e: stop-supabase-e2e stop-app-e2e ## stop the stack in e2e mode
+e2e-down: ## tear down the e2e stack and its volumes
+	docker compose --profile e2e down -v
 
 build: ## build the app
 	npm run build
@@ -111,12 +80,13 @@ test-app:
 test-functions:
 	npm run test:unit:functions
 
-test-e2e: start-e2e
-	npx playwright test --ui
+# `docker compose --wait` already blocks on the healthchecks, so the previous
+# wait-on step against the Supabase auth endpoint is gone along with Supabase.
+test-e2e: e2e-up ## run the e2e suite interactively against the real stack
+	E2E_DATABASE_URL=postgres://crm:crm@localhost:5432/crm_e2e npx playwright test --ui
 
-test-e2e-ci: start-e2e-ci
-	npx wait-on http-get://localhost:54341/auth/v1/health http-get://localhost:5175
-	npx playwright test
+test-e2e-ci: e2e-up ## run the e2e suite against the real stack
+	E2E_DATABASE_URL=postgres://crm:crm@localhost:5432/crm_e2e npx playwright test
 
 lint:
 	npm run lint

@@ -96,9 +96,12 @@ describe("the contacts_summary company_name leak", () => {
       }),
     );
 
-    assert.ok(
-      res.status >= 400,
-      `cross-tenant company_id was accepted with ${res.status}`,
+    // 400, not merely ">= 400": a 500 here would mean the integrity violation
+    // is leaking out as an unhandled error instead of a validation failure.
+    assert.equal(
+      res.status,
+      400,
+      `cross-tenant company_id should be a client error, got ${res.status}`,
     );
   });
 
@@ -177,9 +180,10 @@ describe("cross-tenant writes", () => {
         `/api/${resource}`,
         post(A.admin.token, { ...base, ...foreignParent[resource] }),
       );
-      assert.ok(
-        res.status >= 400,
-        `${resource} accepted a cross-tenant parent (${res.status})`,
+      assert.equal(
+        res.status,
+        400,
+        `${resource} should reject a cross-tenant parent with 400, got ${res.status}`,
       );
     }
   });
@@ -206,9 +210,10 @@ describe("cross-tenant writes", () => {
         `/api/${resource}`,
         post(A.admin.token, body),
       );
-      assert.ok(
-        res.status >= 400,
-        `${resource} accepted a cross-tenant array reference (${res.status})`,
+      assert.equal(
+        res.status,
+        400,
+        `${resource} should reject a cross-tenant array ref with 400, got ${res.status}`,
       );
     }
   });
