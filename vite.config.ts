@@ -20,10 +20,12 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    visualizer({
-      open: process.env.NODE_ENV !== "CI",
-      filename: "./dist/stats.html",
-    }),
+    // Opt-in only (`npm run build:analyze`). Writing the report into dist/ made
+    // Caddy serve the full module graph publicly at /stats.html, and `open`
+    // tried to launch a browser inside the Docker build.
+    ...(process.env.ANALYZE
+      ? [visualizer({ open: true, filename: "./.analyze/stats.html" })]
+      : []),
     createHtmlPlugin({
       minify: true,
       inject: {
@@ -37,6 +39,11 @@ export default defineConfig({
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MiB
+        // The app is path-routed, so an offline deep link must resolve to the
+        // SPA shell rather than 404. API and storage calls must never be
+        // answered with HTML.
+        navigateFallback: "/index.html",
+        navigateFallbackDenylist: [/^\/api\//, /^\/storage\//],
       },
       manifest: false, // Use existing manifest.json from public/
     }),
@@ -49,12 +56,14 @@ export default defineConfig({
           ),
         }
       : undefined,
-  base: "./",
-  esbuild: {
-    keepNames: true,
-  },
+  // Must be absolute: the app is path-routed (ra-core mounts a BrowserRouter),
+  // so with "./" a hard load of /contacts/123/show resolves asset URLs against
+  // /contacts/123/ and Caddy's SPA fallback returns HTML for a module script.
+  base: "/",
   build: {
-    sourcemap: true,
+    // No sourcemaps in production until there is an error tracker to upload
+    // them to; Caddy would otherwise serve them publicly.
+    sourcemap: false,
   },
   resolve: {
     preserveSymlinks: true,

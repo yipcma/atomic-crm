@@ -22,7 +22,9 @@ interface SetPasswordFormData {
 
 function readToken(searchToken: string | null): string {
   if (searchToken) return searchToken;
-  // Fallback for hash-style URLs (#/set-password?token=...).
+  // TRANSITIONAL: invite links minted before 2026-08-02 used hash URLs
+  // (#/set-password?token=...). They expire after INVITE_TOKEN_TTL (7d by
+  // default), so this fallback can be deleted after 2026-08-10.
   const hashQuery = window.location.hash.split("?")[1] ?? "";
   return new URLSearchParams(hashQuery).get("token") ?? "";
 }

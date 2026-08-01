@@ -105,7 +105,10 @@ export const getAuthProvider = (): AuthProvider => ({
       "/sign-up",
       "/verify-email",
     ]) {
-      if (path === route || hash.includes(`#${route}`)) {
+      // TRANSITIONAL: the `hash` branch covers invite links minted before
+      // 2026-08-02, when these routes were hash-based. Delete it (and the
+      // `hash` binding above) after 2026-08-10, once those tokens have expired.
+      if (path === route || hash.startsWith(`#${route}`)) {
         return;
       }
     }
