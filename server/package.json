@@ -8,7 +8,9 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "migrate": "tsx src/migrate.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "NODE_ENV=test node --import tsx --test --test-concurrency=1 'src/**/*.test.ts'",
+    "test:unit": "NODE_ENV=test node --import tsx --test 'src/auth/*.test.ts'"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",

@@ -134,3 +134,88 @@ jobs:
 
             - name: 🔨 Build
               run: npm run build
+
+    # The API is a separate deployable with its own package.json and Dockerfile,
+    # and nothing above exercises it -- a broken server/ used to surface only at
+    # Railway deploy time. The tenancy suite needs a real Postgres: every bug it
+    # guards against is a SQL or schema bug a mocked driver would pass.
+    server:
+        name: 🗄️ Server
+        timeout-minutes: 15
+        runs-on: ubuntu-latest
+        if: ${{ !github.event.pull_request.draft || github.event_name == 'push' }}
+        services:
+            postgres:
+                image: postgres:16
+                env:
+                    POSTGRES_USER: crm
+                    POSTGRES_PASSWORD: crm
+                    POSTGRES_DB: crm_test
+                ports:
+                    - 5432:5432
+                options: >-
+                    --health-cmd pg_isready
+                    --health-interval 5s
+                    --health-timeout 5s
+                    --health-retries 10
+        env:
+            DATABASE_URL: postgres://crm:crm@localhost:5432/crm_test
+            TEST_DATABASE_URL: postgres://crm:crm@localhost:5432/crm_test
+            JWT_SECRET: ci-test-secret
+            ENRICH_AVATARS: "false"
+        defaults:
+            run:
+                working-directory: server
+        steps:
+            - name: 📥 Checkout repo
+              uses: actions/checkout@v4
+
+            - name: ⚙️ Setup node
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: npm
+                  cache-dependency-path: server/package-lock.json
+
+            - name: 📥 Download deps
+              run: npm ci
+
+            - name: 🏷️ Typecheck
+              run: npm run typecheck
+
+            - name: 🛠️ Migrate
+              run: npm run migrate
+
+            - name: ♻️ Migrations are idempotent
+              run: npm run migrate
+
+            - name: 🔎 Tests
+              run: npm test
+
+    # The Dockerfiles are the actual deploy artifacts and nothing else builds
+    # them; this is what catches a build-time regression before Railway does.
+    docker:
+        name: 🐳 Docker build
+        timeout-minutes: 20
+        runs-on: ubuntu-latest
+        if: ${{ !github.event.pull_request.draft || github.event_name == 'push' }}
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - service: web
+                      context: .
+                      dockerfile: Dockerfile
+                    - service: api
+                      context: server
+                      dockerfile: server/Dockerfile
+        steps:
+            - name: 📥 Checkout repo
+              uses: actions/checkout@v4
+
+            - name: 🐳 Build ${{ matrix.service }} image
+              uses: docker/build-push-action@v6
+              with:
+                  context: ${{ matrix.context }}
+                  file: ${{ matrix.dockerfile }}
+                  push: false

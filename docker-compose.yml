@@ -29,8 +29,36 @@ services:
       - "3000:3000"
     volumes:
       - crm-files:/data/attachments
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     depends_on:
       db:
+        condition: service_healthy
+
+  # The real production topology: the built SPA behind Caddy, with /api and
+  # /storage reverse-proxied to the API on a single origin. Behind a profile so
+  # `docker compose up -d db` stays the lightweight dev path.
+  web:
+    profiles: ["e2e"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      API_ORIGIN: "api:3000"
+      PORT: "8080"
+    ports:
+      - "5175:8080"
+    depends_on:
+      api:
         condition: service_healthy
 
 volumes:
