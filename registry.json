@@ -326,6 +326,14 @@
           "type": "registry:component"
         },
         {
+          "path": "src/components/atomic-crm/providers/commons/chineseCrmMessages.ts",
+          "type": "registry:component"
+        },
+        {
+          "path": "src/components/atomic-crm/providers/commons/chineseCoreMessages.ts",
+          "type": "registry:component"
+        },
+        {
           "path": "src/components/atomic-crm/providers/commons/canAccess.ts",
           "type": "registry:component"
         },
@@ -867,6 +875,10 @@
         },
         {
           "path": "src/lib/toSlug.ts",
+          "type": "registry:lib"
+        },
+        {
+          "path": "src/lib/errors.ts",
           "type": "registry:lib"
         },
         {

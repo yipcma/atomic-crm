@@ -455,6 +455,7 @@ export const englishCrmMessages = {
       load_more: "Load more activity",
     },
     dashboard: {
+      mentions: "You were mentioned",
       deals_chart: "Upcoming Deal Revenue",
       deals_pipeline: "Deals Pipeline",
       latest_activity: "Latest Activity",
