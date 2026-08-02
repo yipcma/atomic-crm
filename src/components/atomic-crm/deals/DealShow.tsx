@@ -147,10 +147,7 @@ const DealShowContent = () => {
                 <span className="text-xs text-muted-foreground tracking-wide">
                   {translate("resources.deals.fields.contact_ids")}
                 </span>
-                <ReferenceArrayField
-                  source="contact_ids"
-                  reference="contacts_summary"
-                >
+                <ReferenceArrayField source="contact_ids" reference="contacts">
                   <ContactList />
                 </ReferenceArrayField>
               </div>

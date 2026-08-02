@@ -143,7 +143,7 @@ const CompanyShowContent = () => {
               <TabsContent value="contacts">
                 {record.nb_contacts ? (
                   <ReferenceManyField
-                    reference="contacts_summary"
+                    reference="contacts"
                     target="company_id"
                     sort={{ field: "last_name", order: "ASC" }}
                   >

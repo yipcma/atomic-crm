@@ -74,14 +74,20 @@ function remapActivity(row: any) {
 }
 
 // Turn an invite token into a shareable set-password URL (email-free onboarding).
-// Path-based: ra-core mounts a BrowserRouter, so these are real routes.
+//
+// The token MUST live in the hash. ra-core's AdminRouter mounts a HashRouter by
+// default, so location.pathname is always "/" and a path-based link such as
+// /set-password?token=... loads the app at the dashboard and silently discards
+// the token. Verified in a browser: the hash form renders the set-password
+// screen, the path form does not.
 function inviteUrl(token: string): string {
-  return `${window.location.origin}/set-password?token=${encodeURIComponent(token)}`;
+  return `${window.location.origin}/#/set-password?token=${encodeURIComponent(token)}`;
 }
 
 // Turn a generic invite token into a shareable self-registration URL.
+// Hash-based for the same reason as inviteUrl above.
 function registerUrl(token: string): string {
-  return `${window.location.origin}/register?token=${encodeURIComponent(token)}`;
+  return `${window.location.origin}/#/register?token=${encodeURIComponent(token)}`;
 }
 
 function parseTotal(headers: Headers, fallback: number): number {

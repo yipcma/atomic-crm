@@ -77,8 +77,11 @@ export const AddTask = ({
                 variant="ghost"
                 className="p-2 cursor-pointer"
                 onClick={handleOpen}
+                // The tooltip is visual only; without this the button is an
+                // unlabelled icon to a screen reader (and to any test).
+                aria-label={translate("resources.tasks.action.create")}
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-4 h-4" aria-hidden />
               </Button>
             </TooltipTrigger>
             <TooltipContent>

@@ -1,4 +1,4 @@
-import { useResourceContext, useCreatePath } from "ra-core";
+import { useResourceContext, useCreatePath, useTranslate } from "ra-core";
 import { useNavigate } from "react-router";
 import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ export const MobileBackButton = (props: { resource?: string; to?: string }) => {
   const resource = useResourceContext(props);
   const navigate = useNavigate();
   const createPath = useCreatePath();
+  const translate = useTranslate();
   const { to } = props;
   const finalTo =
     to ??
@@ -26,8 +27,10 @@ export const MobileBackButton = (props: { resource?: string; to?: string }) => {
         navigate(finalTo);
       }}
     >
-      <ChevronLeft className="size-6" />
-      <span className="sr-only">Back{to ? "" : " to list"}</span>
+      <ChevronLeft className="size-6" aria-hidden />
+      {/* Was hardcoded English, so the only label a screen reader got stayed
+          untranslated in every other locale. */}
+      <span className="sr-only">{translate("ra.action.back")}</span>
     </Button>
   );
 };

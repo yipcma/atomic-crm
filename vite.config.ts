@@ -48,9 +48,11 @@ export default defineConfig({
       manifest: false, // Use existing manifest.json from public/
     }),
   ],
-  // Must be absolute: the app is path-routed (ra-core mounts a BrowserRouter),
-  // so with "./" a hard load of /contacts/123/show resolves asset URLs against
-  // /contacts/123/ and Caddy's SPA fallback returns HTML for a module script.
+  // Absolute rather than "./". The app is hash-routed (ra-core mounts a
+  // HashRouter), so pathname is normally "/" and "./" happens to resolve
+  // correctly -- but only by luck. Any real path, such as the SPA fallback
+  // serving a mistyped or legacy URL, resolves "./assets/..." against that
+  // path instead and gets HTML back for a module script.
   base: "/",
   build: {
     // No sourcemaps in production until there is an error tracker to upload

@@ -23,9 +23,10 @@ interface SetPasswordFormData {
 
 function readToken(searchToken: string | null): string {
   if (searchToken) return searchToken;
-  // TRANSITIONAL: invite links minted before 2026-08-02 used hash URLs
-  // (#/set-password?token=...). They expire after INVITE_TOKEN_TTL (7d by
-  // default), so this fallback can be deleted after 2026-08-10.
+  // Not transitional: invite links are hash URLs (#/set-password?token=...)
+  // because ra-core mounts a HashRouter. useSearchParams normally reads the
+  // hash's query, but this keeps the token readable if the page is ever
+  // rendered outside that router context.
   const hashQuery = window.location.hash.split("?")[1] ?? "";
   return new URLSearchParams(hashQuery).get("token") ?? "";
 }

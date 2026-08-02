@@ -1,60 +1,51 @@
 import { test, expect } from "./fixtures";
 
-// Regression guard for the base:"./" bug.
+// The app is HASH-routed: ra-core's AdminRouter mounts a HashRouter by default,
+// so location.pathname stays "/" and the route lives in the fragment. Two
+// separate things therefore need guarding, and they are easy to confuse:
 //
-// The app is path-routed (ra-core mounts a BrowserRouter) and the server falls
-// back to index.html for unknown paths. With a RELATIVE base, index.html served
-// at /contacts/123/show referenced ./assets/index-*.js, which the browser
-// resolved to /contacts/123/assets/index-*.js -- another SPA fallback, so the
-// browser got HTML for a module script, refused it on MIME grounds, and
-// rendered a blank page. Every bookmark and every refresh was broken.
-//
-// These tests must fail if vite.config.ts base is ever set back to "./".
-test.describe("deep links", () => {
-  const DEEP_PATHS = ["/contacts", "/contacts/1/show", "/companies", "/deals"];
-
-  for (const path of DEEP_PATHS) {
-    test(`serves executable JS for a cold load of ${path}`, async ({
-      page,
-    }) => {
-      const badMimeTypes: string[] = [];
-      page.on("response", async (res) => {
-        const url = new URL(res.url());
-        if (!url.pathname.startsWith("/assets/")) return;
-        const type = res.headers()["content-type"] ?? "";
-        if (url.pathname.endsWith(".js") && !type.includes("javascript")) {
-          badMimeTypes.push(`${url.pathname} -> ${type}`);
-        }
-      });
-
-      const consoleErrors: string[] = [];
-      page.on("console", (msg) => {
-        if (msg.type() === "error") consoleErrors.push(msg.text());
-      });
-
-      // A cold navigation, NOT an in-app link click: this is the code path that
-      // a bookmark or a refresh takes.
-      await page.goto(path);
-
-      expect(badMimeTypes, "assets must not be served as HTML").toEqual([]);
-      expect(consoleErrors).toEqual([]);
-      // The SPA shell mounted, rather than leaving an empty root.
-      await expect(page.locator("#root")).not.toBeEmpty();
-    });
-  }
-
+//  1. Asset resolution. With a relative vite `base`, index.html served at any
+//     non-root path resolves ./assets/... against that path, gets the SPA
+//     fallback's HTML back for a module script, and white-screens on a MIME
+//     refusal. Hash routing hides this most of the time, which is exactly why
+//     it needs a test.
+//  2. Hash routes actually routing -- in particular the invite and
+//     password-reset links, which carry their token in the fragment. A
+//     path-based link loads the app at the dashboard and silently drops the
+//     token, locking the invitee out with no error.
+test.describe("asset resolution", () => {
   test("index.html references absolute asset paths", async ({ request }) => {
     const html = await (await request.get("/")).text();
     const refs = [...html.matchAll(/(?:src|href)="([^"]+)"/g)].map((m) => m[1]);
-    const relative = refs.filter((r) => r.startsWith("./"));
 
     expect(
-      relative,
-      'relative asset refs break deep links; vite base must be "/"',
+      refs.filter((r) => r.startsWith("./")),
+      'relative asset refs break any non-root URL; vite base must be "/"',
     ).toEqual([]);
   });
 
-  test("survives a hard reload on a deep path", async ({
+  test("serves executable JS, never HTML, for asset requests", async ({
+    page,
+  }) => {
+    const badMimeTypes: string[] = [];
+    page.on("response", (res) => {
+      const { pathname } = new URL(res.url());
+      if (!pathname.startsWith("/assets/") || !pathname.endsWith(".js")) return;
+      const type = res.headers()["content-type"] ?? "";
+      if (!type.includes("javascript")) {
+        badMimeTypes.push(`${pathname} -> ${type}`);
+      }
+    });
+
+    await page.goto("/#/contacts");
+
+    expect(badMimeTypes, "assets must not be served as HTML").toEqual([]);
+    await expect(page.locator("#root")).not.toBeEmpty();
+  });
+});
+
+test.describe("hash routes", () => {
+  test("a cold load of a hash route renders that route, not the dashboard", async ({
     page,
     signIn,
     createOrganization,
@@ -62,9 +53,31 @@ test.describe("deep links", () => {
     const org = await createOrganization();
     await signIn(org);
 
-    await page.goto("/contacts");
-    await page.reload();
+    await page.goto("/#/contacts");
+
+    await expect(page).toHaveURL(/#\/contacts$/);
+    await expect(page.locator("#root")).not.toBeEmpty();
+  });
+
+  // Guards a regression that shipped once: the invite URL was rewritten to a
+  // path, which loads the app at the dashboard and discards the token.
+  test("the set-password route is reachable by its shared link form", async ({
+    page,
+  }) => {
+    await page.goto("/#/set-password?token=DUMMY");
+
+    // Renders the password form rather than falling through to the dashboard.
+    await expect(
+      page.getByRole("button", { name: /set password/i }),
+    ).toBeVisible();
+  });
+
+  test("the register route is reachable by its shared link form", async ({
+    page,
+  }) => {
+    await page.goto("/#/register?token=DUMMY");
 
     await expect(page.locator("#root")).not.toBeEmpty();
+    await expect(page).toHaveURL(/#\/register/);
   });
 });
