@@ -1,13 +1,22 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
-import { visualizer } from "rollup-plugin-visualizer";
-import { defineConfig } from "vite";
+import { defineConfig, type PluginOption } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 import createHtmlPlugin from "vite-plugin-simple-html";
 
+// Imported lazily, and only when analysing. rollup-plugin-visualizer is a
+// devDependency, so a top-level import would make `vite build` fail outright in
+// any image built with `npm ci --omit=dev` -- a break that would only show up at
+// deploy time, in the Docker build, long after CI went green.
+async function analyzerPlugin(): Promise<PluginOption[]> {
+  if (!process.env.ANALYZE) return [];
+  const { visualizer } = await import("rollup-plugin-visualizer");
+  return [visualizer({ open: true, filename: "./.analyze/stats.html" })];
+}
+
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(async () => ({
   server: {
     port: 5173,
     host: true,
@@ -23,9 +32,7 @@ export default defineConfig({
     // Opt-in only (`npm run build:analyze`). Writing the report into dist/ made
     // Caddy serve the full module graph publicly at /stats.html, and `open`
     // tried to launch a browser inside the Docker build.
-    ...(process.env.ANALYZE
-      ? [visualizer({ open: true, filename: "./.analyze/stats.html" })]
-      : []),
+    ...(await analyzerPlugin()),
     createHtmlPlugin({
       minify: true,
       inject: {
@@ -65,4 +72,4 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-});
+}));
