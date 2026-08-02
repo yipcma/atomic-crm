@@ -8,7 +8,9 @@ export function CheckYourEmail({ email }: { email: string }) {
   const dataProvider = useDataProvider<CrmDataProvider>();
   const notify = useNotify();
   const translate = useTranslate();
-  const { darkModeLogo, title } = useConfigurationContext();
+  // Light logo: this page renders on the default (light) background,
+  // unlike the dark split panel used by RegisterPage/SetPasswordPage.
+  const { lightModeLogo, title } = useConfigurationContext();
 
   const resend = async () => {
     try {
@@ -25,7 +27,7 @@ export function CheckYourEmail({ email }: { email: string }) {
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
       <div className="w-full max-w-sm space-y-6 text-center">
-        <img className="h-8 mx-auto" src={darkModeLogo} alt={title} />
+        <img className="h-8 mx-auto" src={lightModeLogo} alt={title} />
         <h1 className="text-2xl font-semibold tracking-tight">
           {translate("crm.auth.check_email_title", { _: "Check your email" })}
         </h1>

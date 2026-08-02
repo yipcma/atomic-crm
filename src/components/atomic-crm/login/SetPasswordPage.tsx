@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Form, required, useNotify, useTranslate } from "ra-core";
 import type { SubmitHandler, FieldValues } from "react-hook-form";
-import { useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
+import { errorMessage } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import { TextInput } from "@/components/admin/text-input";
 import { Notification } from "@/components/admin/notification";
@@ -38,6 +39,7 @@ export const SetPasswordPage = () => {
   const [searchParams] = useSearchParams();
   const token = readToken(searchParams.get("token"));
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
   const notify = useNotify();
   const translate = useTranslate();
 
@@ -66,10 +68,13 @@ export const SetPasswordPage = () => {
         jsonRequest("POST", { token, password: values.password }),
       );
       establishSession(json);
-      window.location.href = "/";
-    } catch (error: any) {
+      // SPA navigation, not a reload: a reload throws away the query cache
+      // establishSession just warmed and re-downloads the whole bundle, which
+      // is a couple of seconds of white screen right at the end of onboarding.
+      navigate("/", { replace: true });
+    } catch (error: unknown) {
       setLoading(false);
-      notify(error?.message ?? "ra.auth.sign_in_error", { type: "error" });
+      notify(errorMessage(error, "ra.auth.sign_in_error"), { type: "error" });
     }
   };
 

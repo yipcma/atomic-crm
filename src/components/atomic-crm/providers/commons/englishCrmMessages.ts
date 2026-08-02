@@ -370,7 +370,37 @@ export const englishCrmMessages = {
     action: {
       reset_password: "Reset Password",
     },
+    superadmin: {
+      organizations: "Organizations",
+      organization: "Organization",
+      users: "Users",
+      active: "Active",
+      toggle_active: "Toggle organization active state",
+      no_organizations: "No organizations found.",
+      disable_title: "Disable this organization?",
+      disable_confirm: "Disable organization",
+    },
+    share: {
+      copy_link: "Copy link",
+      copied: "Link copied",
+      copy_failed:
+        "Couldn't copy automatically — select the link above and copy it manually.",
+    },
     auth: {
+      email: "Email",
+      organization_name: "Organization name",
+      verifying_email: "Verifying your email…",
+      invalid_invite: "This link is invalid or has expired.",
+      verification_resent:
+        "If that account needs verifying, we've sent a new link.",
+      resend_verification: "Resend verification email",
+      back_to_sign_in: "Back to sign in",
+      forgot_password_sent:
+        "If that account exists, we've sent a password reset email.",
+      forgot_password_failed:
+        "We couldn't send the reset email. Please try again.",
+      forgot_password_rate_limited:
+        "Too many attempts. Please wait a few minutes and try again.",
       first_name: "First name",
       last_name: "Last name",
       confirm_password: "Confirm password",

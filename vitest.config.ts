@@ -59,6 +59,8 @@ export default defineConfig({
             "supabase/**",
             ".supabase-e2e/**",
             "e2e/**/*.spec.{ts,tsx}",
+            // Browser-free logic tests run under the "node" project below.
+            "src/**/*.node.test.ts",
             // Harness hook tests are Node-only (they import node:fs / node:path
             // and spawn subprocesses); they run under the "claude" project below.
             ".claude/**",
@@ -68,6 +70,24 @@ export default defineConfig({
               external: [/playwright/],
             },
           },
+        },
+      },
+      {
+        // Pure src/ logic with no DOM: catalogs, formatters, query builders.
+        // Kept out of "app" so it needs no browser download to run, which makes
+        // it usable in constrained environments and much faster in CI.
+        resolve: {
+          preserveSymlinks: true,
+          alias: {
+            "@": path.resolve(__dirname, "./src"),
+          },
+        },
+        test: {
+          name: "node",
+          globals: true,
+          environment: "node",
+          include: ["src/**/*.node.test.ts"],
+          exclude: ["**/node_modules/**"],
         },
       },
       {

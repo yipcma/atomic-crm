@@ -118,10 +118,14 @@ export const SignupPage = () => {
                   _: "Organization name",
                 })}
               </Label>
+              {/* Required like every other field: without this an org could be
+                  created nameless, and there is no settings screen to rename
+                  it afterwards. */}
               <Input
-                {...register("organization_name")}
+                {...register("organization_name", { required: true })}
                 id="organization_name"
                 type="text"
+                required
                 placeholder="Acme Inc."
               />
             </div>

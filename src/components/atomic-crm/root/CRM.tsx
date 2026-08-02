@@ -276,31 +276,39 @@ const DesktopAdmin = (
   );
 };
 
+// Module scope, not the component body. Constructing these per render created a
+// fresh cache and a fresh persister on every re-render, so the 24-hour gcTime
+// and offlineFirst mode below never actually applied to anything -- the
+// offline-first setup was discarded as fast as it was built. They depend on no
+// props or state, so they only ever need to exist once.
+const mobileQueryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      gcTime: 1000 * 60 * 60 * 24, // 24 hours
+      networkMode: "offlineFirst",
+    },
+    mutations: {
+      networkMode: "offlineFirst",
+    },
+  },
+});
+
+const mobilePersister = createAsyncStoragePersister({
+  storage: localStorage,
+});
+
 const MobileAdmin = (
   props: CoreAdminProps & {
     dashboard?: DashboardComponent;
     layout?: LayoutComponent;
   },
 ) => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        gcTime: 1000 * 60 * 60 * 24, // 24 hours
-        networkMode: "offlineFirst",
-      },
-      mutations: {
-        networkMode: "offlineFirst",
-      },
-    },
-  });
-  const asyncStoragePersister = createAsyncStoragePersister({
-    storage: localStorage,
-  });
+  const queryClient = mobileQueryClient;
 
   return (
     <PersistQueryClientProvider
       client={queryClient}
-      persistOptions={{ persister: asyncStoragePersister }}
+      persistOptions={{ persister: mobilePersister }}
     >
       <Admin
         queryClient={queryClient}
