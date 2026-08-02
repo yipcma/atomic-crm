@@ -151,7 +151,10 @@ export type Task = {
   contact_id: Identifier;
   type: string;
   text: string;
-  due_date: string;
+  // Nullable: the column has no NOT NULL constraint, and the API returns null
+  // for a task created without one. Declaring it `string` here is what let a
+  // null reach date-fns and crash the dashboard.
+  due_date: string | null;
   done_date?: string | null;
   sales_id?: Identifier;
   mentions?: Identifier[];

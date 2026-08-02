@@ -8,7 +8,7 @@ import { getDay, isAfter } from "date-fns";
 export const isBeforeFriday = () => getDay(new Date()) < 5; // Friday is represented by 5
 
 type Task = {
-  due_date: string;
+  due_date: string | null;
   done_date: string | null;
 };
 
@@ -20,21 +20,29 @@ export const isRecentlyDone = (task: Task) =>
   task.done_date != null &&
   isAfter(new Date(task.done_date), new Date(Date.now() - 5 * 60 * 1000));
 
-export const isOverdue = (dateString: string) => {
+// due_date is nullable. `new Date(null)` is the epoch, so an undated task used
+// to satisfy `< startOfToday()` and show up as OVERDUE. An undated task has no
+// deadline to have missed, so every dated bucket rejects null and "Later"
+// absorbs them -- otherwise they would match no bucket and vanish from the list.
+export const isOverdue = (dateString: string | null) => {
+  if (!dateString) return false;
   return new Date(dateString) < startOfToday();
 };
 
-export const isDueToday = (dateString: string) => {
+export const isDueToday = (dateString: string | null) => {
+  if (!dateString) return false;
   const dueDate = new Date(dateString);
   return dueDate >= startOfToday() && dueDate < endOfToday();
 };
 
-export const isDueTomorrow = (dateString: string) => {
+export const isDueTomorrow = (dateString: string | null) => {
+  if (!dateString) return false;
   const dueDate = new Date(dateString);
   return dueDate >= endOfToday() && dueDate < endOfTomorrow();
 };
 
-export const isDueThisWeek = (dateString: string) => {
+export const isDueThisWeek = (dateString: string | null) => {
+  if (!dateString) return false;
   const dueDate = new Date(dateString);
   return (
     dueDate >= endOfTomorrow() &&
@@ -42,7 +50,8 @@ export const isDueThisWeek = (dateString: string) => {
   );
 };
 
-export const isDueLater = (dateString: string) => {
+export const isDueLater = (dateString: string | null) => {
+  if (!dateString) return true;
   const dueDate = new Date(dateString);
   return dueDate >= endOfWeek(new Date(), { weekStartsOn: 0 });
 };

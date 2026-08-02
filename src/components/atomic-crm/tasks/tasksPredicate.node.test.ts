@@ -206,3 +206,22 @@ describe("tasksPredicate", () => {
     });
   });
 });
+
+describe("tasks with no due date", () => {
+  // due_date is nullable in the database. `new Date(null)` is the epoch, so
+  // before this was handled an undated task compared as older than today and
+  // was reported as overdue.
+  it("is not overdue", () => {
+    expect(isOverdue(null)).toBe(false);
+  });
+
+  it("is not due today, tomorrow, or this week", () => {
+    expect(isDueToday(null)).toBe(false);
+    expect(isDueTomorrow(null)).toBe(false);
+    expect(isDueThisWeek(null)).toBe(false);
+  });
+
+  it("falls into 'later' so it stays visible rather than matching no bucket", () => {
+    expect(isDueLater(null)).toBe(true);
+  });
+});
