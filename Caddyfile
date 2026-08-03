@@ -1,0 +1,59 @@
+# Caddy config for the Leaf CRM static SPA on Railway.
+# Serves the built dist/ and reverse-proxies API + storage calls to the api
+# service over Railway private networking, so the browser sees a single origin
+# (no CORS, no build-time backend secrets).
+{
+	admin off
+	auto_https off
+
+	# Needed for {client_ip} below to resolve to the real client rather than the
+	# nearest proxy hop. Railway's edge fronts this container over its private
+	# network, so private ranges are the trusted hop.
+	servers {
+		trusted_proxies static private_ranges
+	}
+}
+
+:{$PORT:80} {
+	encode zstd gzip
+
+	# Forward API and file-storage traffic to the backend service.
+	# API_ORIGIN example: api.railway.internal:3000
+	@backend path /api/* /storage/*
+	handle @backend {
+		reverse_proxy {$API_ORIGIN} {
+			# The rate limiter keys on this. header_up REPLACES any client-supplied
+			# value, which is what makes it non-spoofable — unlike X-Forwarded-For,
+			# where reverse_proxy appends and an attacker's value survives as the
+			# leftmost entry.
+			header_up X-Real-Client-IP {client_ip}
+		}
+	}
+
+	# Everything else is the SPA; unknown paths fall back to index.html.
+	handle {
+		root * /srv
+
+		header {
+			Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+			Strict-Transport-Security "max-age=31536000; includeSubDomains"
+			X-Content-Type-Options "nosniff"
+			X-Frame-Options "DENY"
+			Referrer-Policy "strict-origin-when-cross-origin"
+			Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		}
+
+		# Hashed asset filenames are content-addressed, so they can be cached
+		# forever. index.html and the service worker must never be, or clients
+		# keep resolving chunk URLs from a stale build (see the vite:preloadError
+		# handler in src/main.tsx).
+		@immutable path /assets/*
+		header @immutable Cache-Control "public, max-age=31536000, immutable"
+
+		@revalidate path / /index.html /sw.js /registerSW.js /manifest.json
+		header @revalidate Cache-Control "no-cache"
+
+		try_files {path} /index.html
+		file_server
+	}
+}
