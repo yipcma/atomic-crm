@@ -1,51 +1,61 @@
 import { expect, test } from "./fixtures";
 
 test.describe("user adding a task", () => {
-  test.beforeEach(async ({ createSales, createContact, createCompany }) => {
-    const sales = await createSales({
-      first_name: "John",
-      last_name: "Doe",
-      email: "john@doe.com",
-      password: "password",
-    });
+  test.beforeEach(
+    async ({
+      createOrganization,
+      createContact,
+      createCompany,
+      createNotes,
+      signIn,
+    }) => {
+      const org = await createOrganization({
+        first_name: "John",
+        last_name: "Doe",
+        email: "john@doe.com",
+      });
+      await signIn(org);
 
-    const company = await createCompany({
-      name: "Smith Corp",
-      salesId: sales.id,
-    });
+      const company = await createCompany({
+        name: "Smith Corp",
+        token: org.accessToken,
+      });
 
-    await createContact({
-      first_name: "Jane",
-      last_name: "Smith",
-      title: "CEO",
-      sales_id: sales.id,
-      company_id: company.id,
-      notes: [{ text: "Met at a conference." }],
-    });
+      const jane = await createContact({
+        first_name: "Jane",
+        last_name: "Smith",
+        title: "CEO",
+        company_id: company.id,
+        token: org.accessToken,
+      });
+      await createNotes({
+        contactId: jane.id,
+        token: org.accessToken,
+        notes: [{ text: "Met at a conference." }],
+      });
 
-    await createContact({
-      first_name: "Bob",
-      last_name: "Johnson",
-      title: "CTO",
-      sales_id: sales.id,
-      company_id: company.id,
-    });
+      await createContact({
+        first_name: "Bob",
+        last_name: "Johnson",
+        title: "CTO",
+        company_id: company.id,
+        token: org.accessToken,
+      });
 
-    await createContact({
-      first_name: "Alice",
-      last_name: "Williams",
-      title: "CFO",
-      sales_id: sales.id,
-      company_id: company.id,
-    });
-  });
+      await createContact({
+        first_name: "Alice",
+        last_name: "Williams",
+        title: "CFO",
+        company_id: company.id,
+        token: org.accessToken,
+      });
+    },
+  );
   test("user adding a task", async ({ page, isMobile, menu, dismissToast }) => {
+    // The session is seeded in beforeEach, so no login form to drive here.
     await page.goto("/");
-    await page.getByLabel("Email").fill("john@doe.com");
-    await page.getByLabel("Password").fill("password");
-    await page.getByRole("button", { name: "Sign in" }).click();
 
-    await expect(page).toHaveTitle(/Atomic CRM/);
+    await expect(page).toHaveTitle(/Leaf CRM/);
     await expect(page.getByText("Latest Activity")).toBeVisible();
 
     await menu.goToContacts();

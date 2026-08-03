@@ -326,11 +326,15 @@
           "type": "registry:component"
         },
         {
-          "path": "src/components/atomic-crm/providers/commons/canAccess.ts",
+          "path": "src/components/atomic-crm/providers/commons/chineseCrmMessages.ts",
           "type": "registry:component"
         },
         {
-          "path": "src/components/atomic-crm/providers/commons/attachments.ts",
+          "path": "src/components/atomic-crm/providers/commons/chineseCoreMessages.ts",
+          "type": "registry:component"
+        },
+        {
+          "path": "src/components/atomic-crm/providers/commons/canAccess.ts",
           "type": "registry:component"
         },
         {
@@ -490,10 +494,6 @@
           "type": "registry:component"
         },
         {
-          "path": "src/components/atomic-crm/login/authConfig.ts",
-          "type": "registry:component"
-        },
-        {
           "path": "src/components/atomic-crm/login/VerifyEmailPage.tsx",
           "type": "registry:component"
         },
@@ -507,10 +507,6 @@
         },
         {
           "path": "src/components/atomic-crm/login/SetPasswordPage.tsx",
-          "type": "registry:component"
-        },
-        {
-          "path": "src/components/atomic-crm/login/SSOAuthButton.tsx",
           "type": "registry:component"
         },
         {
@@ -631,10 +627,6 @@
         },
         {
           "path": "src/components/atomic-crm/deals/ContactList.tsx",
-          "type": "registry:component"
-        },
-        {
-          "path": "src/components/atomic-crm/dashboard/Welcome.tsx",
           "type": "registry:component"
         },
         {
@@ -883,6 +875,10 @@
         },
         {
           "path": "src/lib/toSlug.ts",
+          "type": "registry:lib"
+        },
+        {
+          "path": "src/lib/errors.ts",
           "type": "registry:lib"
         },
         {

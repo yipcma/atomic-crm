@@ -28,7 +28,7 @@ export const TaskFormContent = ({
         helperText={false}
       />
       {selectContact && (
-        <ReferenceInput source="contact_id" reference="contacts_summary">
+        <ReferenceInput source="contact_id" reference="contacts">
           <AutocompleteInput
             label="resources.tasks.fields.contact_id"
             optionText={contactOptionText}

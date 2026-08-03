@@ -13,8 +13,11 @@ endif
 help:
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
-install: package.json ## install dependencies
+install: package.json ## install dependencies (app + api)
 	npm install
+	# server/ is a separate package with its own lockfile; the e2e stack needs
+	# its migrate script, so a root-only install leaves `make test-e2e` broken.
+	npm install --prefix server
 
 install-playwright-browsers: install ## install the playwright browsers matching the repo's pinned version
 	npx playwright install chromium chromium-headless-shell
@@ -41,46 +44,18 @@ supabase-reset-database: ## reset (and clear!) the database
 start-app: ## start the app locally
 	npm run dev
 
-start-app-e2e: ## start the app pointing to the e2e supabase instance
-	npx vite --port 5175 --force --mode e2e &
+# Order matters. The API asserts at boot that every exposed resource is
+# tenant-scoped, so it refuses to start against an unmigrated database -- the
+# migrations must run BEFORE the api container, not after it. Everything also
+# has to agree on ONE database: the api, the migration, and the suite's own
+# reset/seed all use `crm`.
+e2e-up: ## bring up the real e2e stack (postgres + api + the built SPA behind Caddy)
+	docker compose up -d db --wait
+	DATABASE_URL=postgres://crm:crm@localhost:5432/crm JWT_SECRET=e2e-secret npm --prefix server run migrate
+	docker compose --profile e2e up -d --build --wait
 
-stop-app-e2e:
-	kill $$(lsof -t -i:5175)
-
-start-app-e2e-ci: build-e2e ## start the app pointing to the e2e supabase instance in CI mode (no open, no watch)
-	npx serve -l 5175 -L -s dist &
-
-start: start-supabase start-app ## start the stack locally
-
-start-demo: ## start the app locally in demo mode
-	npm run dev:demo
-
-stop-supabase: ## stop local supabase
-	npx supabase stop
-
-stop: stop-supabase ## stop the stack locally
-
-start-supabase-e2e: ## start a separate supabase instance for e2e (fresh DB every run)
-	@npx supabase stop --workdir .supabase-e2e --no-backup 2>/dev/null || true
-	rm -rf .supabase-e2e/supabase
-	mkdir -p .supabase-e2e/supabase
-	cp supabase/config.e2e.toml .supabase-e2e/supabase/config.toml
-	cp -r supabase/migrations .supabase-e2e/supabase/migrations
-	cp -r supabase/schemas .supabase-e2e/supabase/schemas
-	cp -r supabase/functions .supabase-e2e/supabase/functions
-	cp -r supabase/templates .supabase-e2e/supabase/templates
-	cp supabase/seed.sql .supabase-e2e/supabase/seed.sql
-	cp supabase/signing_keys.json .supabase-e2e/supabase/signing_keys.json
-	@$(call run-silent-tty,npx supabase start --workdir .supabase-e2e,supabase-e2e)
-
-stop-supabase-e2e: ## stop the e2e supabase instance
-	npx supabase stop --workdir .supabase-e2e --no-backup
-
-start-e2e: start-supabase-e2e start-app-e2e ## start the stack in e2e mode (fresh supabase instance + app pointing to it)
-
-start-e2e-ci: start-supabase-e2e start-app-e2e-ci ## start the stack in e2e mode in CI (fresh supabase instance + built app pointing to it)
-
-stop-e2e: stop-supabase-e2e stop-app-e2e ## stop the stack in e2e mode
+e2e-down: ## tear down the e2e stack and its volumes
+	docker compose --profile e2e down -v
 
 build: ## build the app
 	npm run build
@@ -88,8 +63,6 @@ build: ## build the app
 build-e2e: ## build the app in e2e mode (with the e2e supabase config)
 	@$(call run-silent,npm run build:e2e,build-e2e)
 
-build-demo: ## build the app in demo mode
-	npm run build:demo
 
 prod-start: build supabase-deploy
 	open http://127.0.0.1:3000 && npx serve -l tcp://127.0.0.1:3000 dist
@@ -115,12 +88,17 @@ test-app:
 test-functions:
 	npm run test:unit:functions
 
-test-e2e: start-e2e
-	npx playwright test --ui
+# `docker compose --wait` already blocks on the healthchecks, so the previous
+# wait-on step against the Supabase auth endpoint is gone along with Supabase.
+# Reset goes through the db CONTAINER's psql rather than a host one, so neither
+# a developer machine nor the CI runner image needs postgresql-client installed.
+E2E_PSQL_CMD = docker compose exec -T db psql -U crm -d crm
 
-test-e2e-ci: start-e2e-ci
-	npx wait-on http-get://localhost:54341/auth/v1/health http-get://localhost:5175
-	npx playwright test
+test-e2e: e2e-up ## run the e2e suite interactively against the real stack
+	E2E_PSQL="$(E2E_PSQL_CMD)" npx playwright test --ui
+
+test-e2e-ci: e2e-up ## run the e2e suite against the real stack
+	E2E_PSQL="$(E2E_PSQL_CMD)" npx playwright test
 
 lint:
 	npm run lint

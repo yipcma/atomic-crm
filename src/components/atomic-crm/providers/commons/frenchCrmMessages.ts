@@ -376,7 +376,37 @@ export const frenchCrmMessages = {
     action: {
       reset_password: "Réinitialiser le mot de passe",
     },
+    superadmin: {
+      organizations: "Organisations",
+      organization: "Organisation",
+      users: "Utilisateurs",
+      active: "Actif",
+      toggle_active: "Activer ou désactiver l'organisation",
+      no_organizations: "Aucune organisation trouvée.",
+      disable_title: "Désactiver cette organisation ?",
+      disable_confirm: "Désactiver l'organisation",
+    },
+    share: {
+      copy_link: "Copier le lien",
+      copied: "Lien copié",
+      copy_failed:
+        "Copie automatique impossible — sélectionnez le lien ci-dessus et copiez-le manuellement.",
+    },
     auth: {
+      email: "E-mail",
+      organization_name: "Nom de l'organisation",
+      verifying_email: "Vérification de votre e-mail…",
+      invalid_invite: "Ce lien est invalide ou a expiré.",
+      verification_resent:
+        "Si ce compte doit être vérifié, nous avons envoyé un nouveau lien.",
+      resend_verification: "Renvoyer l'e-mail de vérification",
+      back_to_sign_in: "Retour à la connexion",
+      forgot_password_sent:
+        "Si ce compte existe, nous avons envoyé un e-mail de réinitialisation.",
+      forgot_password_failed:
+        "Impossible d'envoyer l'e-mail. Veuillez réessayer.",
+      forgot_password_rate_limited:
+        "Trop de tentatives. Veuillez patienter quelques minutes.",
       first_name: "Prénom",
       last_name: "Nom",
       confirm_password: "Confirmer le mot de passe",
@@ -431,6 +461,7 @@ export const frenchCrmMessages = {
       load_more: "Charger plus d'activité",
     },
     dashboard: {
+      mentions: "Vous avez été mentionné",
       deals_chart: "Revenus des affaires à venir",
       deals_pipeline: "Pipeline des affaires",
       latest_activity: "Dernière activité",

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslate } from "ra-core";
 import { Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,12 +28,22 @@ export function ShareLinkDialog({
   description,
   url,
 }: ShareLinkDialogProps) {
+  const translate = useTranslate();
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
 
   const copy = async () => {
-    await navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    // The Clipboard API rejects on a non-secure origin or a denied permission.
+    // Unhandled, that was a silent no-op: the button simply never changed and
+    // the user had no idea the link had not been copied.
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopyFailed(false);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopyFailed(true);
+    }
   };
 
   return (
@@ -61,7 +72,7 @@ export function ShareLinkDialog({
             variant="outline"
             size="icon"
             onClick={copy}
-            aria-label="Copy link"
+            aria-label={translate("crm.share.copy_link", { _: "Copy link" })}
           >
             {copied ? (
               <Check className="h-4 w-4" />
@@ -70,9 +81,23 @@ export function ShareLinkDialog({
             )}
           </Button>
         </div>
+        {/* The Copy -> Check swap is purely visual, so announce the outcome. */}
+        <p
+          role="status"
+          aria-live="polite"
+          className="text-sm text-muted-foreground"
+        >
+          {copied
+            ? translate("crm.share.copied", { _: "Link copied" })
+            : copyFailed
+              ? translate("crm.share.copy_failed", {
+                  _: "Couldn't copy automatically — select the link above and copy it manually.",
+                })
+              : null}
+        </p>
         <DialogFooter>
           <Button type="button" onClick={onClose}>
-            Done
+            {translate("ra.action.close", { _: "Done" })}
           </Button>
         </DialogFooter>
       </DialogContent>

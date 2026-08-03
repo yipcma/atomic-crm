@@ -105,7 +105,11 @@ export const getAuthProvider = (): AuthProvider => ({
       "/sign-up",
       "/verify-email",
     ]) {
-      if (path === route || hash.includes(`#${route}`)) {
+      // The `hash` branch is the one that actually fires: ra-core mounts a
+      // HashRouter, so pathname stays "/" and the route lives in the hash.
+      // startsWith rather than includes, so an unrelated fragment that merely
+      // contains "#/register" cannot open a public route.
+      if (path === route || hash.startsWith(`#${route}`)) {
         return;
       }
     }

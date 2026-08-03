@@ -2,6 +2,15 @@ import { useCallback, useEffect, useState } from "react";
 import { useGetIdentity, useNotify, useTranslate } from "ra-core";
 import { Navigate } from "react-router";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -15,6 +24,7 @@ import {
   jsonRequest,
 } from "@/components/atomic-crm/providers/railway/httpClient";
 import type { Identity } from "@/components/atomic-crm/providers/railway/authProvider";
+import { errorMessage } from "@/lib/errors";
 
 interface AdminOrganization {
   id: number;
@@ -53,6 +63,19 @@ export const SuperAdminOrganizations = () => {
     }
   }, [isSuperAdmin, load]);
 
+  // Disabling locks out every user in that tenant immediately, so it is
+  // confirmed. Re-enabling is harmless and stays a single click.
+  const [pendingDisable, setPendingDisable] =
+    useState<AdminOrganization | null>(null);
+
+  const requestToggle = (org: AdminOrganization, disabled: boolean) => {
+    if (disabled) {
+      setPendingDisable(org);
+      return;
+    }
+    void toggleDisabled(org, false);
+  };
+
   const toggleDisabled = async (org: AdminOrganization, disabled: boolean) => {
     // Optimistic update.
     setOrganizations((prev) =>
@@ -63,12 +86,14 @@ export const SuperAdminOrganizations = () => {
         `/api/admin/organizations/${org.id}`,
         jsonRequest("PATCH", { disabled }),
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Revert on failure.
       setOrganizations((prev) =>
         prev.map((o) => (o.id === org.id ? { ...o, disabled: !disabled } : o)),
       );
-      notify(error?.message ?? "ra.notification.http_error", { type: "error" });
+      notify(errorMessage(error, "ra.notification.http_error"), {
+        type: "error",
+      });
     }
   };
 
@@ -116,7 +141,7 @@ export const SuperAdminOrganizations = () => {
               <TableCell className="text-right">
                 <Switch
                   checked={!org.disabled}
-                  onCheckedChange={(checked) => toggleDisabled(org, !checked)}
+                  onCheckedChange={(checked) => requestToggle(org, !checked)}
                   aria-label={translate("crm.superadmin.toggle_active", {
                     _: "Toggle organization active state",
                   })}
@@ -138,6 +163,50 @@ export const SuperAdminOrganizations = () => {
           )}
         </TableBody>
       </Table>
+
+      <Dialog
+        open={pendingDisable !== null}
+        onOpenChange={(next) => {
+          if (!next) setPendingDisable(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {translate("crm.superadmin.disable_title", {
+                _: "Disable this organization?",
+              })}
+            </DialogTitle>
+            <DialogDescription>
+              {translate("crm.superadmin.disable_description", {
+                _: `Every user in "${pendingDisable?.name ?? ""}" will be signed out and locked out immediately. You can re-enable it at any time.`,
+              })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setPendingDisable(null)}
+            >
+              {translate("ra.action.cancel", { _: "Cancel" })}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => {
+                const org = pendingDisable;
+                setPendingDisable(null);
+                if (org) void toggleDisabled(org, true);
+              }}
+            >
+              {translate("crm.superadmin.disable_confirm", {
+                _: "Disable organization",
+              })}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { HttpError } from "../providers/railway/httpClient";
 import type { CrmDataProvider } from "../providers/types";
 
 interface ForgotPasswordDialogProps {
@@ -32,10 +33,11 @@ export function ForgotPasswordDialog({
     setLoading(true);
     try {
       await dataProvider.forgotPassword(email);
-    } catch {
-      // Never reveal whether the account exists.
-    } finally {
-      setLoading(false);
+      // Enumeration safety is the SERVER's job: /forgot-password returns 200
+      // whether or not the account exists. So a rejection here is a real
+      // failure (network, 5xx, rate limit) and must not be reported as
+      // success -- the previous code notified from a `finally`, leaving the
+      // user waiting for an email that was never sent.
       setEmail("");
       onClose();
       notify("crm.auth.forgot_password_sent", {
@@ -44,6 +46,28 @@ export function ForgotPasswordDialog({
           _: "If that account exists, we've sent a password reset email.",
         },
       });
+    } catch (error: unknown) {
+      const status =
+        error instanceof HttpError
+          ? error.status
+          : (undefined as number | undefined);
+      if (status === 429) {
+        notify("crm.auth.forgot_password_rate_limited", {
+          type: "warning",
+          messageArgs: {
+            _: "Too many attempts. Please wait a few minutes and try again.",
+          },
+        });
+      } else {
+        notify("crm.auth.forgot_password_failed", {
+          type: "error",
+          messageArgs: {
+            _: "We couldn't send the reset email. Please try again.",
+          },
+        });
+      }
+    } finally {
+      setLoading(false);
     }
   };
 

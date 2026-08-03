@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { query } from "../db.js";
-import { hashPassword, verifyPassword } from "../auth/password.js";
+import { hashPassword, needsRehash, verifyPassword } from "../auth/password.js";
 import {
   signAccessToken,
   signInviteToken,
@@ -83,6 +83,18 @@ authRoutes.post("/login", async (c) => {
     throw new HTTPException(401, { message: "Invalid credentials" });
   }
 
+  // Transparently upgrade legacy bcrypt hashes now that we hold the plaintext.
+  if (needsRehash(user.encrypted_password)) {
+    try {
+      await query(
+        "update public.users set encrypted_password = $1 where id = $2",
+        [await hashPassword(password), user.id],
+      );
+    } catch (error) {
+      console.error("password rehash failed:", error);
+    }
+  }
+
   const sale = await saleForUser(user.id);
   if (!sale) {
     throw new HTTPException(401, { message: "Account not found" });
@@ -94,7 +106,9 @@ authRoutes.post("/login", async (c) => {
   if (!superAdmin && (await isOrgDisabled(sale.organization_id))) {
     throw new HTTPException(403, { message: "Organization disabled" });
   }
-  if (isEmailEnabled() && !user.email_verified && !superAdmin) {
+  // No superadmin exemption: an unverified holder of a SUPERADMIN_EMAILS address
+  // must prove they control it before the platform role takes effect.
+  if (isEmailEnabled() && !user.email_verified) {
     throw new HTTPException(403, {
       message: "Please verify your email before signing in",
     });
@@ -151,8 +165,9 @@ authRoutes.post("/signup", async (c) => {
     (first_name ? `${first_name}'s Organization` : "My Organization");
   const organizationId = await createOrganization(orgName);
 
-  const superAdmin = isSuperAdmin(email);
-  const emailVerified = !isEmailEnabled() || superAdmin;
+  // Superadmins verify like everyone else: exempting them is what made
+  // "register the superadmin address first" a usable takeover path.
+  const emailVerified = !isEmailEnabled();
   const { sale } = await createSalesUser({
     email,
     password,
@@ -180,7 +195,7 @@ authRoutes.post("/signup", async (c) => {
     {
       access_token: await signAccessToken(sale.user_id),
       refresh_token: await signRefreshToken(sale.user_id),
-      identity: toIdentity(sale, superAdmin),
+      identity: toIdentity(sale, isSuperAdmin(sale.email)),
     },
     201,
   );
@@ -236,8 +251,7 @@ authRoutes.post("/register", async (c) => {
     });
   }
 
-  const superAdmin = isSuperAdmin(email);
-  const emailVerified = !isEmailEnabled() || superAdmin;
+  const emailVerified = !isEmailEnabled();
   const { sale } = await createSalesUser({
     email,
     password,
@@ -265,7 +279,7 @@ authRoutes.post("/register", async (c) => {
     {
       access_token: await signAccessToken(sale.user_id),
       refresh_token: await signRefreshToken(sale.user_id),
-      identity: toIdentity(sale, superAdmin),
+      identity: toIdentity(sale, isSuperAdmin(sale.email)),
     },
     201,
   );

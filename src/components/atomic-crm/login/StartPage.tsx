@@ -5,7 +5,6 @@ import { Navigate } from "react-router-dom";
 import type { CrmDataProvider } from "../providers/types";
 import { LoginSkeleton } from "./LoginSkeleton";
 import { LoginPage } from "./LoginPage";
-import { disableEmailPasswordAuthentication } from "./authConfig";
 
 export const StartPage = () => {
   const dataProvider = useDataProvider<CrmDataProvider>();
@@ -23,7 +22,6 @@ export const StartPage = () => {
   if (isPending) return <LoginSkeleton />;
   if (error) return <LoginPage />;
   if (isInitialized) return <LoginPage />;
-  if (disableEmailPasswordAuthentication) return <LoginPage />;
 
   return <Navigate to="/sign-up" />;
 };

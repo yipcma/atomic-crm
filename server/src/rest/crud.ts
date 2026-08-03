@@ -1,12 +1,55 @@
 import { HTTPException } from "hono/http-exception";
 import { query, withTransaction, type PoolClient } from "../db.js";
-import { getColumn, getColumns, hasColumn } from "../columns.js";
+import { getColumn, getColumns } from "../columns.js";
 import { buildOrderBy, buildWhere } from "./filter.js";
 import { getResource } from "./resources.js";
 
 export interface WriteContext {
   saleId: number;
   organizationId: number;
+}
+
+// Array columns holding foreign ids. Postgres has no per-element foreign key,
+// so the composite FKs in migration 0006 cannot cover these -- they are checked
+// here instead. table -> column -> parent table.
+const ARRAY_RELATIONS: Record<string, Record<string, string>> = {
+  contacts: { tags: "tags" },
+  deals: { contact_ids: "contacts" },
+  contact_notes: { mentions: "sales" },
+  deal_notes: { mentions: "sales" },
+  tasks: { mentions: "sales" },
+};
+
+// Reject, rather than silently filtering, so a data-loss bug stays
+// distinguishable from an attack.
+async function assertArrayRefsInOrg(
+  table: string,
+  data: Record<string, unknown>,
+  organizationId: number,
+  client: PoolClient | null = null,
+): Promise<void> {
+  const relations = ARRAY_RELATIONS[table];
+  if (!relations) return;
+
+  for (const [column, parent] of Object.entries(relations)) {
+    const ids = data[column];
+    if (!Array.isArray(ids) || ids.length === 0) continue;
+
+    const unique = [...new Set(ids)];
+    const sql =
+      `select count(*)::int as count from ${quoteIdent(parent)}` +
+      ` where id = any($1::bigint[]) and organization_id = $2`;
+    const params = [unique, organizationId];
+    const result = client
+      ? await client.query<{ count: number }>(sql, params)
+      : await query<{ count: number }>(sql, params);
+
+    if ((result.rows[0]?.count ?? 0) !== unique.length) {
+      throw new HTTPException(400, {
+        message: `Invalid ${column} reference`,
+      });
+    }
+  }
 }
 
 export interface ResourceHooks {
@@ -111,14 +154,13 @@ export async function listRecords(
   const where = buildWhere(readSource, filter);
   const orderBy = buildOrderBy(readSource, sort);
 
-  // Tenant isolation: constrain to the caller's organization.
+  // Tenant isolation: constrain to the caller's organization. Unconditional by
+  // design — assertTenantScoped() proves at boot that every exposed source has
+  // the column, so a missing one is a crash, not a silent cross-tenant leak.
   const params = [...where.params];
-  let clause = where.clause;
-  if (hasColumn(readSource, "organization_id")) {
-    params.push(organizationId);
-    const cond = `${quoteIdent("organization_id")} = $${params.length}`;
-    clause = clause ? `${clause} AND ${cond}` : `WHERE ${cond}`;
-  }
+  params.push(organizationId);
+  const cond = `${quoteIdent("organization_id")} = $${params.length}`;
+  const clause = where.clause ? `${where.clause} AND ${cond}` : `WHERE ${cond}`;
 
   const start = range?.[0] ?? 0;
   const end = range?.[1] ?? start + 24;
@@ -149,12 +191,10 @@ export async function getRecord(
   organizationId: number,
 ): Promise<Record<string, unknown>> {
   const { readSource } = resourceOrThrow(resource);
-  const params: unknown[] = [id];
-  let sql = `select * from ${quoteIdent(readSource)} where id = $1`;
-  if (hasColumn(readSource, "organization_id")) {
-    params.push(organizationId);
-    sql += ` and ${quoteIdent("organization_id")} = $2`;
-  }
+  const params: unknown[] = [id, organizationId];
+  const sql =
+    `select * from ${quoteIdent(readSource)}` +
+    ` where id = $1 and ${quoteIdent("organization_id")} = $2`;
   const { rows } = await query(sql, params);
   if (!rows[0]) {
     throw new HTTPException(404, { message: "Record not found" });
@@ -168,12 +208,10 @@ async function reload(
   id: unknown,
   organizationId: number,
 ): Promise<Record<string, unknown>> {
-  const params: unknown[] = [id];
-  let sql = `select * from ${quoteIdent(readSource)} where id = $1`;
-  if (hasColumn(readSource, "organization_id")) {
-    params.push(organizationId);
-    sql += ` and ${quoteIdent("organization_id")} = $2`;
-  }
+  const params: unknown[] = [id, organizationId];
+  const sql =
+    `select * from ${quoteIdent(readSource)}` +
+    ` where id = $1 and ${quoteIdent("organization_id")} = $2`;
   const result = client
     ? await client.query(sql, params)
     : await query(sql, params);
@@ -195,9 +233,7 @@ export async function createRecord(
   }
   if (hooks.beforeCreate) data = await hooks.beforeCreate(data, ctx);
   // Force the tenant: never trust a client-supplied organization_id.
-  if (getColumns(table).has("organization_id")) {
-    data.organization_id = ctx.organizationId;
-  }
+  data.organization_id = ctx.organizationId;
 
   const writable = pickWritable(table, data);
   const keys = Object.keys(writable);
@@ -214,6 +250,7 @@ export async function createRecord(
   });
 
   return withTransaction(async (client) => {
+    await assertArrayRefsInOrg(table, writable, ctx.organizationId, client);
     const inserted = await client.query(
       `insert into ${quoteIdent(table)} (${cols}) values (${placeholders.join(", ")}) returning id`,
       values,
@@ -247,6 +284,7 @@ export async function updateRecord(
   const keys = Object.keys(writable);
 
   return withTransaction(async (client) => {
+    await assertArrayRefsInOrg(table, writable, ctx.organizationId, client);
     if (keys.length > 0) {
       const assignments: string[] = [];
       const values: unknown[] = [];
@@ -262,10 +300,8 @@ export async function updateRecord(
       });
       values.push(id);
       let whereSql = `where id = $${values.length}`;
-      if (getColumns(table).has("organization_id")) {
-        values.push(ctx.organizationId);
-        whereSql += ` and ${quoteIdent("organization_id")} = $${values.length}`;
-      }
+      values.push(ctx.organizationId);
+      whereSql += ` and ${quoteIdent("organization_id")} = $${values.length}`;
       await client.query(
         `update ${quoteIdent(table)} set ${assignments.join(", ")} ${whereSql}`,
         values,
@@ -286,12 +322,10 @@ export async function deleteRecord(
   const { table } = resourceOrThrow(resource);
   const previous = await getRecord(resource, id, ctx.organizationId);
   if (hooks.beforeDelete) await hooks.beforeDelete(previous, ctx);
-  const params: unknown[] = [id];
-  let sql = `delete from ${quoteIdent(table)} where id = $1`;
-  if (getColumns(table).has("organization_id")) {
-    params.push(ctx.organizationId);
-    sql += ` and ${quoteIdent("organization_id")} = $2`;
-  }
+  const params: unknown[] = [id, ctx.organizationId];
+  const sql =
+    `delete from ${quoteIdent(table)}` +
+    ` where id = $1 and ${quoteIdent("organization_id")} = $2`;
   await query(sql, params);
   return previous;
 }

@@ -1,172 +1,157 @@
 import { test as base, expect, type Page } from "@playwright/test";
-import { createClient } from "@supabase/supabase-js";
+import { execFileSync } from "node:child_process";
 
-const adminSupabase = createClient(
-  process.env.VITE_SUPABASE_URL ?? "http://127.0.0.1:54341",
-  process.env.SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+// The e2e stack is the real one: the built SPA on a single origin, with /api
+// reverse-proxied to the Hono API, and a throwaway Postgres behind it. Seeding
+// goes through the public API rather than straight into tables, so the fixtures
+// exercise the same signup/invite paths a user would.
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:5175";
+const API_URL = `${BASE_URL}/api`;
 
-// Tables in FK-safe deletion order (children before parents)
+const DATABASE_URL =
+  process.env.E2E_DATABASE_URL ?? "postgres://crm:crm@localhost:5432/crm";
+
+// Reset shells out to psql rather than using the `pg` driver, because pg is a
+// dependency of server/ only and this repo requires a human to vet any new
+// root package. Override E2E_PSQL when psql is not on PATH, e.g.
+// E2E_PSQL="docker compose exec -T db psql".
+const PSQL = (process.env.E2E_PSQL ?? "psql").split(" ");
+
+// CASCADE resolves the dependency graph, so no FK-ordered delete loop is
+// needed. RESTART IDENTITY keeps ids predictable between specs.
 const TABLES = [
-  "tasks",
   "contact_notes",
   "deal_notes",
+  "tasks",
   "deals",
   "contacts",
   "companies",
   "tags",
-  "favicons_excluded_domains",
-  "configuration",
   "sales",
+  "organizations",
+  "users",
 ];
 
-async function resetDb() {
-  for (const table of TABLES) {
-    // Supabase client delete need a where clause to get executed, so we use one that will match on all rows (id is not null)
-    await adminSupabase.from(table).delete().not("id", "is", null);
-  }
+function sql(statement: string): string {
+  const [cmd, ...prefix] = PSQL;
+  const args = process.env.E2E_PSQL
+    ? [...prefix, "-v", "ON_ERROR_STOP=1", "-tAc", statement]
+    : [...prefix, DATABASE_URL, "-v", "ON_ERROR_STOP=1", "-tAc", statement];
+  return execFileSync(cmd, args, { encoding: "utf8" }).trim();
+}
 
-  // Delete all auth users (cascades to sales via DB trigger)
-  const { data } = await adminSupabase.auth.admin.listUsers();
-  await Promise.all(
-    data.users.map((user) => adminSupabase.auth.admin.deleteUser(user.id)),
+async function resetDb() {
+  sql(
+    `truncate table ${TABLES.map((t) => `public.${t}`).join(", ")} restart identity cascade`,
   );
 }
 
-async function createUser({
-  email,
-  password,
-}: {
-  email: string;
-  password: string;
-}) {
-  const { data, error } = await adminSupabase.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
+async function api<T>(
+  path: string,
+  init: RequestInit & { token?: string } = {},
+): Promise<T> {
+  const { token, ...rest } = init;
+  const res = await fetch(`${API_URL}${path}`, {
+    ...rest,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(rest.headers ?? {}),
+    },
   });
-
-  if (error) {
-    throw new Error(`Failed to create user: ${error.message}`);
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(
+      `${init.method ?? "GET"} ${path} -> ${res.status}: ${text}`,
+    );
   }
-
-  return data.user;
+  return text ? (JSON.parse(text) as T) : (undefined as T);
 }
 
-async function createSales({
-  first_name,
-  last_name,
-  email,
-  password,
-}: {
+export interface SeededOrg {
+  orgId: number;
+  saleId: number;
+  email: string;
+  password: string;
+  accessToken: string;
+  refreshToken: string;
+  identity: Record<string, unknown>;
+}
+
+// Self-serve signup: creates a NEW organization and its first admin.
+async function createOrganization({
+  name = "Acme Inc",
+  email = "admin@example.test",
+  password = "correct horse battery staple",
+  first_name = "Ada",
+  last_name = "Admin",
+}: Partial<{
+  name: string;
+  email: string;
+  password: string;
   first_name: string;
   last_name: string;
-  email: string;
-  password: string;
-}) {
-  const { data: userData, error: userError } =
-    await adminSupabase.auth.admin.createUser({
+}> = {}): Promise<SeededOrg> {
+  const signup = await api<{
+    access_token: string;
+    refresh_token: string;
+    identity: { id: number };
+  }>("/auth/signup", {
+    method: "POST",
+    body: JSON.stringify({
       email,
       password,
-      email_confirm: true,
-    });
+      first_name,
+      last_name,
+      organization_name: name,
+    }),
+  });
 
-  if (userError) {
-    throw new Error(`Failed to create sales: ${userError.message}`);
-  }
-
-  const { data, error } = await adminSupabase
-    .from("sales")
-    .update({ first_name, last_name, administrator: false })
-    .eq("user_id", userData.user?.id)
-    .select()
-    .single();
-
-  if (error) {
-    throw new Error(`Failed to create sales: ${error.message}`);
-  }
-
-  return data;
-}
-
-async function createNotes({
-  contactId,
-  salesId,
-  notes,
-}: {
-  contactId: string | number;
-  salesId: string | number;
-  notes: {
-    text: string;
-    date?: string;
-    status?: "cold" | "warm" | "hot";
-  }[];
-}) {
-  if (notes.length === 0) return;
-
-  const { error } = await adminSupabase.from("contact_notes").insert(
-    notes.map(({ text, date, status = "cold" }) => ({
-      contact_id: contactId,
-      sales_id: salesId,
-      text,
-      date,
-      status,
-    })),
+  const orgId = Number(
+    sql(
+      `select organization_id from public.sales where id = ${Number(signup.identity.id)}`,
+    ),
   );
 
-  if (error) {
-    throw new Error(`Failed to create notes: ${error.message}`);
-  }
+  return {
+    orgId,
+    saleId: signup.identity.id,
+    email,
+    password,
+    accessToken: signup.access_token,
+    refreshToken: signup.refresh_token,
+    identity: signup.identity,
+  };
 }
 
-async function createCompany({
-  name,
-  salesId,
-}: {
-  name: string;
-  salesId: string | number;
-}) {
-  const { data, error } = await adminSupabase
-    .from("companies")
-    .insert({ name, sales_id: salesId })
-    .select("id")
-    .single();
+const createCompany = ({ name, token }: { name: string; token: string }) =>
+  api<{ id: number }>("/companies", {
+    method: "POST",
+    token,
+    body: JSON.stringify({ name }),
+  });
 
-  if (error) {
-    throw new Error(`Failed to create company: ${error.message}`);
-  }
-
-  return data;
-}
-
-async function createContact({
+const createContact = ({
   first_name,
   last_name,
   title = "",
   company_id = null,
-  sales_id,
-  notes = [],
+  token,
 }: {
   first_name: string;
   last_name: string;
   title?: string;
-  company_id?: string | number | null;
-  sales_id: string | number;
-  notes?: {
-    text: string;
-    date?: string;
-    status?: "cold" | "warm" | "hot";
-  }[];
-}) {
-  const { data, error } = await adminSupabase
-    .from("contacts")
-    .insert({
+  company_id?: number | null;
+  token: string;
+}) =>
+  api<{ id: number }>("/contacts", {
+    method: "POST",
+    token,
+    body: JSON.stringify({
       first_name,
       last_name,
       title,
       company_id,
-      sales_id,
       first_seen: new Date().toISOString(),
       last_seen: new Date().toISOString(),
       has_newsletter: false,
@@ -176,21 +161,45 @@ async function createContact({
       background: "",
       email_jsonb: [],
       phone_jsonb: [],
-    })
-    .select("id")
-    .single();
-
-  if (error) {
-    throw new Error(`Failed to create contact: ${error.message}`);
-  }
-
-  await createNotes({
-    contactId: data.id,
-    salesId: sales_id,
-    notes,
+    }),
   });
 
-  return data;
+const createNotes = async ({
+  contactId,
+  token,
+  notes,
+}: {
+  contactId: number;
+  token: string;
+  notes: { text: string; date?: string; status?: "cold" | "warm" | "hot" }[];
+}) => {
+  for (const { text, date, status = "cold" } of notes) {
+    await api("/contact_notes", {
+      method: "POST",
+      token,
+      body: JSON.stringify({
+        contact_id: contactId,
+        text,
+        status,
+        date: date ?? new Date().toISOString(),
+      }),
+    });
+  }
+};
+
+// Seeds the session directly rather than driving the login form: faster, and it
+// keeps specs focused on the behavior under test. Mirrors what
+// railway/authProvider.establishSession writes.
+async function signIn(page: Page, org: SeededOrg) {
+  await page.addInitScript(
+    ([access, refresh, identity]) => {
+      localStorage.setItem("atomic_crm.access_token", access as string);
+      localStorage.setItem("atomic_crm.refresh_token", refresh as string);
+      localStorage.setItem("RaStore.auth.current_identity", identity as string);
+      localStorage.setItem("RaStore.auth.is_initialized", "true");
+    },
+    [org.accessToken, org.refreshToken, JSON.stringify(org.identity)] as const,
+  );
 }
 
 const getMenuMethod = ({ page }: { page: Page; isMobile: boolean }) => ({
@@ -207,37 +216,33 @@ const getMenuMethod = ({ page }: { page: Page; isMobile: boolean }) => ({
 const dismissToast = async (page: Page, content: string) => {
   await expect(page.getByText(content)).toBeVisible();
   await page.getByLabel("Close toast").first().click();
-  // Since we are in optimistic UI, dismissing the toast trigger the request to the api linked to the toast message
+  // Optimistic UI: dismissing the toast triggers the linked API request.
   await page.waitForLoadState("networkidle");
 };
 
 export const test = base.extend<{
   resetDb: void;
-  createUser: typeof createUser;
-  createSales: typeof createSales;
+  createOrganization: typeof createOrganization;
   createCompany: typeof createCompany;
   createContact: typeof createContact;
   createNotes: typeof createNotes;
+  signIn: (org: SeededOrg) => Promise<void>;
   menu: ReturnType<typeof getMenuMethod>;
   dismissToast: (content: string) => Promise<void>;
 }>({
   resetDb: [
-    // The first argument to a Playwright fixture function must use object destructuring ({}) — _ is not allowed.
-    // Playwright uses this to statically analyze which fixtures are requested.
+    // Playwright statically analyses the destructuring pattern to work out which
+    // fixtures a test requests, so `{}` is required here rather than `_`.
     // eslint-disable-next-line no-empty-pattern
-    async ({}, use) => {
+    async ({}, cb) => {
       await resetDb();
-      await use();
+      await cb();
     },
     { auto: true },
   ],
   // eslint-disable-next-line no-empty-pattern
-  createUser: async ({}, cb) => {
-    await cb(createUser);
-  },
-  // eslint-disable-next-line no-empty-pattern
-  createSales: async ({}, cb) => {
-    await cb(createSales);
+  createOrganization: async ({}, cb) => {
+    await cb(createOrganization);
   },
   // eslint-disable-next-line no-empty-pattern
   createCompany: async ({}, cb) => {
@@ -251,6 +256,9 @@ export const test = base.extend<{
   createNotes: async ({}, cb) => {
     await cb(createNotes);
   },
+  signIn: async ({ page }, cb) => {
+    await cb((org: SeededOrg) => signIn(page, org));
+  },
   menu: async ({ page, isMobile }, cb) => {
     await cb(getMenuMethod({ page, isMobile }));
   },
@@ -259,4 +267,4 @@ export const test = base.extend<{
   },
 });
 
-export { expect };
+export { expect, api, sql };

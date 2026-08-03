@@ -14,8 +14,6 @@ import type { SignUpData } from "../types";
 import { Notification } from "@/components/admin/notification";
 import { ConfirmationRequired } from "./ConfirmationRequired";
 import { CheckYourEmail } from "./CheckYourEmail";
-import { SSOAuthButton } from "./SSOAuthButton";
-import { googleWorkplaceDomain } from "./authConfig";
 
 export const SignupPage = () => {
   const queryClient = useQueryClient();
@@ -120,10 +118,14 @@ export const SignupPage = () => {
                   _: "Organization name",
                 })}
               </Label>
+              {/* Required like every other field: without this an org could be
+                  created nameless, and there is no settings screen to rename
+                  it afterwards. */}
               <Input
-                {...register("organization_name")}
+                {...register("organization_name", { required: true })}
                 id="organization_name"
                 type="text"
+                required
                 placeholder="Acme Inc."
               />
             </div>
@@ -186,16 +188,6 @@ export const SignupPage = () => {
                   })
                 )}
               </Button>
-              {googleWorkplaceDomain ? (
-                <SSOAuthButton
-                  className="w-full"
-                  domain={googleWorkplaceDomain}
-                >
-                  {translate("crm.auth.sign_in_google_workspace", {
-                    _: "Sign in with Google Workplace",
-                  })}
-                </SSOAuthButton>
-              ) : null}
             </div>
           </form>
         </div>
