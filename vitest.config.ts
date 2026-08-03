@@ -61,6 +61,12 @@ export default defineConfig({
             "e2e/**/*.spec.{ts,tsx}",
             // Browser-free logic tests run under the "node" project below.
             "src/**/*.node.test.ts",
+            // server/ is a separate Node package with its own test runner
+            // (`npm test --prefix server`). Its suites import node:crypto,
+            // node:test and pg, none of which exist in a browser.
+            "server/**",
+            // Never pick up build output, in either package.
+            "**/dist/**",
             // Harness hook tests are Node-only (they import node:fs / node:path
             // and spawn subprocesses); they run under the "claude" project below.
             ".claude/**",

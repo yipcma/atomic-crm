@@ -13,8 +13,11 @@ endif
 help:
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
-install: package.json ## install dependencies
+install: package.json ## install dependencies (app + api)
 	npm install
+	# server/ is a separate package with its own lockfile; the e2e stack needs
+	# its migrate script, so a root-only install leaves `make test-e2e` broken.
+	npm install --prefix server
 
 install-playwright-browsers: install ## install the playwright browsers matching the repo's pinned version
 	npx playwright install chromium chromium-headless-shell
