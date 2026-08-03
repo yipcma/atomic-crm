@@ -4,7 +4,7 @@ import { HTTPException } from "hono/http-exception";
 import { secureHeaders } from "hono/secure-headers";
 import { env } from "./env.js";
 import { query } from "./db.js";
-import { hasColumn, loadColumns } from "./columns.js";
+import { getColumns, hasColumn, loadColumns } from "./columns.js";
 import { assertTenantScoped } from "./rest/resources.js";
 import { requireAuth } from "./auth/middleware.js";
 import { ipAndEmailKey, ipKey, rateLimit } from "./auth/rateLimit.js";
@@ -118,7 +118,7 @@ export { app };
 // this directly instead of starting a listener.
 export async function initialize(): Promise<void> {
   await loadColumns();
-  assertTenantScoped(hasColumn);
+  assertTenantScoped(hasColumn, (source) => getColumns(source).size > 0);
 }
 
 async function main() {

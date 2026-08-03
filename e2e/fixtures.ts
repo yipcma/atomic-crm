@@ -9,7 +9,7 @@ const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:5175";
 const API_URL = `${BASE_URL}/api`;
 
 const DATABASE_URL =
-  process.env.E2E_DATABASE_URL ?? "postgres://crm:crm@localhost:5432/crm_e2e";
+  process.env.E2E_DATABASE_URL ?? "postgres://crm:crm@localhost:5432/crm";
 
 // Reset shells out to psql rather than using the `pg` driver, because pg is a
 // dependency of server/ only and this repo requires a human to vet any new

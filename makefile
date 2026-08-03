@@ -41,10 +41,15 @@ supabase-reset-database: ## reset (and clear!) the database
 start-app: ## start the app locally
 	npm run dev
 
+# Order matters. The API asserts at boot that every exposed resource is
+# tenant-scoped, so it refuses to start against an unmigrated database -- the
+# migrations must run BEFORE the api container, not after it. Everything also
+# has to agree on ONE database: the api, the migration, and the suite's own
+# reset/seed all use `crm`.
 e2e-up: ## bring up the real e2e stack (postgres + api + the built SPA behind Caddy)
+	docker compose up -d db --wait
+	DATABASE_URL=postgres://crm:crm@localhost:5432/crm JWT_SECRET=e2e-secret npm --prefix server run migrate
 	docker compose --profile e2e up -d --build --wait
-	docker compose exec -T db psql -U crm -d crm -c "drop database if exists crm_e2e" -c "create database crm_e2e" >/dev/null
-	DATABASE_URL=postgres://crm:crm@localhost:5432/crm_e2e JWT_SECRET=e2e-secret npm --prefix server run migrate
 
 e2e-down: ## tear down the e2e stack and its volumes
 	docker compose --profile e2e down -v
@@ -82,11 +87,15 @@ test-functions:
 
 # `docker compose --wait` already blocks on the healthchecks, so the previous
 # wait-on step against the Supabase auth endpoint is gone along with Supabase.
+# Reset goes through the db CONTAINER's psql rather than a host one, so neither
+# a developer machine nor the CI runner image needs postgresql-client installed.
+E2E_PSQL_CMD = docker compose exec -T db psql -U crm -d crm
+
 test-e2e: e2e-up ## run the e2e suite interactively against the real stack
-	E2E_DATABASE_URL=postgres://crm:crm@localhost:5432/crm_e2e npx playwright test --ui
+	E2E_PSQL="$(E2E_PSQL_CMD)" npx playwright test --ui
 
 test-e2e-ci: e2e-up ## run the e2e suite against the real stack
-	E2E_DATABASE_URL=postgres://crm:crm@localhost:5432/crm_e2e npx playwright test
+	E2E_PSQL="$(E2E_PSQL_CMD)" npx playwright test
 
 lint:
 	npm run lint
