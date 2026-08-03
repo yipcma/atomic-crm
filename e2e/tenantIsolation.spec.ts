@@ -10,6 +10,7 @@ test.describe("tenant isolation", () => {
     signIn,
     createOrganization,
     createCompany,
+    createContact,
   }) => {
     const alpha = await createOrganization({
       name: "Alpha Inc",
@@ -29,6 +30,17 @@ test.describe("tenant isolation", () => {
       token: bravo.accessToken,
     });
 
+    await createContact({
+      first_name: "Alpha",
+      last_name: "Secretson",
+      token: alpha.accessToken,
+    });
+    await createContact({
+      first_name: "Bravo",
+      last_name: "Onlyson",
+      token: bravo.accessToken,
+    });
+
     // Over the API, with Bravo's real token.
     const visible = await api<Array<{ name: string }>>("/companies", {
       token: bravo.accessToken,
@@ -41,13 +53,16 @@ test.describe("tenant isolation", () => {
       api(`/companies/${bravoCompany.id + 1000}`, { token: bravo.accessToken }),
     ).rejects.toThrow(/404/);
 
-    // And in the UI.
+    // And in the UI. Contacts rather than companies: the mobile tree registers
+    // companies with `show` only, so /#/companies has no list route there and
+    // the assertion could never pass on a phone viewport. Contacts have a list
+    // on both, so this runs on every project.
     await signIn(bravo);
-    // Hash route, not a path: the app is hash-routed, so "/companies" would
-    // hit the SPA fallback and boot the app at the dashboard instead.
-    await page.goto("/#/companies");
-    await expect(page.getByText("Bravo Only Corp")).toBeVisible();
-    await expect(page.getByText("Alpha Secret Corp")).toHaveCount(0);
+    // Hash route, not a path: the app is hash-routed, so "/contacts" would hit
+    // the SPA fallback and boot the app at the dashboard instead.
+    await page.goto("/#/contacts");
+    await expect(page.getByText("Bravo Onlyson")).toBeVisible();
+    await expect(page.getByText("Alpha Secretson")).toHaveCount(0);
   });
 
   test("a contact cannot be attached to another tenant's company", async ({
