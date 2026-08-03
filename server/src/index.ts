@@ -47,7 +47,7 @@ const ONE_HOUR = 60 * 60 * 1000;
 app.use(
   "/api/auth/*",
   rateLimit({
-    limit: 100,
+    limit: env.authRateLimitMax,
     windowMs: FIFTEEN_MINUTES,
     key: ipKey("auth"),
   }),
@@ -62,7 +62,7 @@ for (const path of [
   app.use(
     path,
     rateLimit({
-      limit: 10,
+      limit: env.credentialRateLimitMax,
       windowMs: FIFTEEN_MINUTES,
       key: ipAndEmailKey,
     }),
@@ -73,7 +73,11 @@ for (const path of [
 // unbounded row creation.
 app.use(
   "/api/auth/signup",
-  rateLimit({ limit: 5, windowMs: ONE_HOUR, key: ipKey("signup") }),
+  rateLimit({
+    limit: env.signupRateLimitMax,
+    windowMs: ONE_HOUR,
+    key: ipKey("signup"),
+  }),
 );
 
 // Public authentication endpoints.

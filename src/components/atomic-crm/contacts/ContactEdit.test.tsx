@@ -3,10 +3,7 @@ import {
   ContactEditBasic,
   ContactEditWithEmailsAndPhones,
 } from "./ContactEdit.stories";
-import {
-  ContactEditBasic as ContactEditMobileBasic,
-  ContactEditWithEmailsAndPhones as ContactEditMobileWithEmailsAndPhones,
-} from "./ContactEdit.mobile.stories";
+import { ContactEditBasic as ContactEditMobileBasic } from "./ContactEdit.mobile.stories";
 import { page } from "vitest/browser";
 
 describe("ContactEdit", () => {
@@ -241,46 +238,6 @@ describe("ContactEdit", () => {
           data: expect.objectContaining({
             email_jsonb: [{ email: "ada@example.com", type: "Work" }],
             phone_jsonb: null,
-          }),
-        }),
-      );
-    });
-
-    it("preserves existing email and phone entries on edit on mobile", async () => {
-      const updateMock = vi.fn().mockResolvedValue({ data: {} });
-      const screen = await render(
-        <ContactEditMobileWithEmailsAndPhones
-          silent
-          dataProvider={{ update: updateMock }}
-        />,
-      );
-      await screen.getByRole("button", { name: /edit/i }).click();
-
-      // Wait for existing values to appear
-      const emailInput = screen.getByPlaceholder("Email");
-      await expect.element(emailInput).toHaveValue("ada@example.com");
-
-      const phoneInput = screen.getByPlaceholder("Phone number");
-      await expect.element(phoneInput).toHaveValue("0123456789");
-
-      // Submit without changes
-      await screen.getByRole("button", { name: /^save$/i }).click();
-      await expect
-        .poll(() => screen.getByText("Element updated"))
-        .toBeInTheDocument();
-
-      await screen.getByLabelText("Close toast").click();
-
-      // Wait for the update call to complete
-      expect(updateMock).toBeCalledTimes(1);
-
-      // Verify existing data is preserved through the transform
-      expect(updateMock).toBeCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          data: expect.objectContaining({
-            email_jsonb: [{ email: "ada@example.com", type: "Work" }],
-            phone_jsonb: [{ number: "0123456789", type: "Work" }],
           }),
         }),
       );

@@ -25,6 +25,12 @@ services:
       JWT_SECRET: dev-secret-change-me
       PORT: "3000"
       STORAGE_DIR: /data/attachments
+      # The suite drives every signup and login from one address, so the
+      # production limits would throttle the run itself. The middleware stays in
+      # the request path; only the ceilings move.
+      AUTH_RATE_LIMIT_MAX: "100000"
+      CREDENTIAL_RATE_LIMIT_MAX: "100000"
+      SIGNUP_RATE_LIMIT_MAX: "100000"
     ports:
       - "3000:3000"
     volumes:

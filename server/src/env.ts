@@ -26,6 +26,13 @@ export const env = {
     .filter(Boolean),
   // Best-effort avatar/logo enrichment via favicon/gravatar lookups.
   enrichAvatars: process.env.ENRICH_AVATARS !== "false",
+  // Auth rate limits. Defaults are the production values; they are configurable
+  // because an e2e run drives every signup and login from a single address and
+  // would otherwise throttle itself. Raise them for test stacks rather than
+  // switching the middleware off, so the limiter stays in the request path.
+  authRateLimitMax: Number(process.env.AUTH_RATE_LIMIT_MAX ?? 100),
+  credentialRateLimitMax: Number(process.env.CREDENTIAL_RATE_LIMIT_MAX ?? 10),
+  signupRateLimitMax: Number(process.env.SIGNUP_RATE_LIMIT_MAX ?? 5),
 };
 
 // Lives here rather than in auth/middleware.ts so the services layer can call it

@@ -43,7 +43,9 @@ test.describe("tenant isolation", () => {
 
     // And in the UI.
     await signIn(bravo);
-    await page.goto("/companies");
+    // Hash route, not a path: the app is hash-routed, so "/companies" would
+    // hit the SPA fallback and boot the app at the dashboard instead.
+    await page.goto("/#/companies");
     await expect(page.getByText("Bravo Only Corp")).toBeVisible();
     await expect(page.getByText("Alpha Secret Corp")).toHaveCount(0);
   });
